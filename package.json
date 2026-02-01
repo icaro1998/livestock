@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "npm run build -ws",
+    "doctor": "node scripts/doctor.mjs",
     "dev": "npm run dev --workspace @livestock/api",
     "lint": "npm run lint -ws",
     "test": "npm run test -ws",
