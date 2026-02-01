@@ -1,0 +1,27 @@
+{
+  "name": "@livestock/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rimraf dist",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev --name init",
+    "db:backup": "node scripts/backup.js",
+    "db:restore": "node scripts/restore.js",
+    "test": "echo \"(db) no tests yet\""
+  },
+  "dependencies": {
+    "@prisma/client": "^5.10.2",
+    "pino": "^8.17.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.10.2",
+    "typescript": "^5.3.3",
+    "rimraf": "^5.0.5",
+    "@types/node": "^20.10.5"
+  }
+}

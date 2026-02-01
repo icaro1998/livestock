@@ -1,0 +1,244 @@
+// Prisma schema for GANADERÃA AVANZADA backend
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  admin
+  manager
+  viewer
+}
+
+model User {
+  id         BigInt   @id @default(autoincrement())
+  email      String   @unique
+  password   String
+  role       Role
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  tokens     RefreshToken[]
+}
+
+model RefreshToken {
+  id         BigInt   @id @default(autoincrement())
+  token      String   @unique
+  user_id    BigInt
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  expires_at DateTime
+  revoked    Boolean  @default(false)
+  created_at DateTime @default(now())
+}
+
+model Animal {
+  uid             String        @id
+  eid             String?
+  vid             String?
+  registration_at DateTime?
+  alert           Boolean       @default(false)
+  race            String?
+  sex             String?
+  color           String?
+  mother_name     String?
+  father_name     String?
+  brand_mark      String?
+  birth_year      Int?
+  birth_month     Int?
+  birth_place     String?
+  diagnostic      String?
+  warning         String?
+  notes           String?
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @default(now())
+  version         Int           @default(1)
+  events          AnimalEvent[]
+  costs           CostEvent[]
+}
+
+model Location {
+  id         BigInt        @id @default(autoincrement())
+  code       String        @unique
+  name       String?
+  type       String?
+  meta       Json?
+  created_at DateTime      @default(now())
+  updated_at DateTime      @default(now())
+  eventsFrom AnimalEvent[] @relation("location_from")
+  eventsTo   AnimalEvent[] @relation("location_to")
+  costs      CostEvent[]
+}
+
+model HerdGroup {
+  id         BigInt        @id @default(autoincrement())
+  code       String        @unique
+  name       String?
+  meta       Json?
+  created_at DateTime      @default(now())
+  updated_at DateTime      @default(now())
+  events     AnimalEvent[]
+  costs      CostEvent[]
+}
+
+model Party {
+  id         BigInt             @id @default(autoincrement())
+  code       String             @unique
+  name       String?
+  type       String?
+  meta       Json?
+  created_at DateTime           @default(now())
+  updated_at DateTime           @default(now())
+  events     AnimalEvent[]
+  costs      CostEvent[]
+  transport_movements MovementEvent[] @relation("MovementTransport")
+}
+
+model Product {
+  id         BigInt        @id @default(autoincrement())
+  code       String        @unique
+  name       String?
+  category   String?
+  unit       String?
+  meta       Json?
+  created_at DateTime      @default(now())
+  updated_at DateTime      @default(now())
+  events     AnimalEvent[]
+  costs      CostEvent[]
+}
+
+model AnimalEvent {
+  event_id        BigInt   @id @default(autoincrement())
+  uid             String
+  animal          Animal   @relation(fields: [uid], references: [uid], onDelete: Cascade)
+  event_at        DateTime
+  event_type      String
+  event_subtype   String?
+  source_ref      String?
+  batch_id        String?
+  confidence      Decimal? @db.Decimal(5, 2)
+  notes           String?
+  location_from_id BigInt?
+  location_from   Location? @relation("location_from", fields: [location_from_id], references: [id])
+  location_to_id  BigInt?
+  location_to     Location? @relation("location_to", fields: [location_to_id], references: [id])
+  group_id        BigInt?
+  group           HerdGroup? @relation(fields: [group_id], references: [id])
+  party_id        BigInt?
+  party           Party? @relation(fields: [party_id], references: [id])
+  product_id      BigInt?
+  product         Product? @relation(fields: [product_id], references: [id])
+  payload         Json?
+  created_at      DateTime  @default(now())
+  weight          WeightEvent?
+  movement        MovementEvent?
+  repro           ReproEvent?
+  health          HealthEvent?
+  nutrition       NutritionEvent?
+  costs           CostEvent[]
+  @@index([uid, event_at(sort: Desc)])
+  @@index([event_type, event_at(sort: Desc)])
+  @@index([batch_id])
+  @@index([location_from_id])
+  @@index([location_to_id])
+  @@unique([uid, event_at, event_type, event_subtype, source_ref], map: "uq_event_dedup")
+  @@map("animal_event")
+}
+
+model WeightEvent {
+  event_id   BigInt      @id
+  event      AnimalEvent @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+  weight_kg  Decimal?    @db.Decimal(10, 2)
+  method     String?
+  shrink_pct Decimal?    @db.Decimal(5, 2)
+  @@map("weight_event")
+}
+
+model MovementEvent {
+  event_id           BigInt      @id
+  event              AnimalEvent @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+  reason             String?
+  distance_km        Decimal?    @db.Decimal(10, 2)
+  transport_party_id BigInt?
+  transport_party    Party?      @relation("MovementTransport", fields: [transport_party_id], references: [id])
+  @@map("movement_event")
+}
+
+model ReproEvent {
+  event_id      BigInt      @id
+  event         AnimalEvent @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+  repro_action  String?
+  sire_uid      String?
+  dam_uid       String?
+  result        String?
+  calf_uid      String?
+  gestation_days Int?
+  @@map("repro_event")
+}
+
+model HealthEvent {
+  event_id        BigInt      @id
+  event           AnimalEvent @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+  action          String?
+  diagnosis       String?
+  dose            Decimal?    @db.Decimal(10, 2)
+  dose_unit       String?
+  withdrawal_days Int?
+  @@map("health_event")
+}
+
+model NutritionEvent {
+  event_id       BigInt      @id
+  event          AnimalEvent @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+  ration_code    String?
+  intake_kg_day  Decimal?    @db.Decimal(10, 2)
+  supplement_code String?
+  reason         String?
+  @@map("nutrition_event")
+}
+
+model CostEvent {
+  cost_id     BigInt   @id @default(autoincrement())
+  cost_at     DateTime
+  scope       String
+  uid         String?
+  animal      Animal?   @relation(fields: [uid], references: [uid])
+  group_id    BigInt?
+  group       HerdGroup? @relation(fields: [group_id], references: [id])
+  location_id BigInt?
+  location    Location? @relation(fields: [location_id], references: [id])
+  category    String
+  product_id  BigInt?
+  product     Product? @relation(fields: [product_id], references: [id])
+  party_id    BigInt?
+  party       Party?   @relation(fields: [party_id], references: [id])
+  amount      Decimal  @db.Decimal(14, 2)
+  currency    String   @default("BOB")
+  quantity    Decimal?
+  unit        String?
+  source_ref  String?
+  batch_id    String?
+  notes       String?
+  created_at  DateTime @default(now())
+  event_id    BigInt?
+  event       AnimalEvent? @relation(fields: [event_id], references: [event_id])
+  @@index([scope, cost_at(sort: Desc)])
+  @@index([uid, cost_at(sort: Desc)])
+  @@index([category, cost_at(sort: Desc)])
+  @@index([batch_id])
+  @@map("cost_event")
+}
+
+model DerivedMetric {
+  id          BigInt   @id @default(autoincrement())
+  kind        String
+  uid         String?
+  data        Json
+  computed_at DateTime @default(now())
+  @@index([kind])
+  @@index([uid])
+  @@map("derived_metrics")
+}

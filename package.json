@@ -1,0 +1,26 @@
+{
+  "name": "livestock-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "npm@10.5.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -ws",
+    "dev": "npm run dev --workspace @livestock/api",
+    "lint": "npm run lint -ws",
+    "test": "npm run test -ws",
+    "format": "npm run format -ws",
+    "seed": "npm run seed --workspace @livestock/api",
+    "migrate": "npm run migrate --workspace @livestock/db",
+    "smoke": "npm run smoke --workspace @livestock/api",
+    "db:backup": "npm run db:backup --workspace @livestock/db",
+    "db:restore": "npm run db:restore --workspace @livestock/db"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
