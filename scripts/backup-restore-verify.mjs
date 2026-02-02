@@ -88,7 +88,7 @@ const runPgDump = () => {
     throw new Error("DATABASE_URL must include username and database name for docker fallback.");
   }
   const passwordArg = password ? `-e PGPASSWORD="${password}" ` : "";
-  run(`docker exec ${passwordArg}-T ${container} pg_dump -Fc -U ${user} -d ${db} > "${target}"`);
+  run(`docker exec ${passwordArg}-i ${container} pg_dump -Fc -U ${user} -d ${db} > "${target}"`);
   return { method: "docker", container };
 };
 
