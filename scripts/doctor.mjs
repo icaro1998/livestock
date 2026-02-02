@@ -18,7 +18,9 @@ for (const check of checks) {
     const output = execSync(check.command, { stdio: "pipe" }).toString().trim();
     results.push({ ...check, ok: true, output });
   } catch (error) {
-    results.push({ ...check, ok: false, output: error.message });
+    const stderr = error?.stderr ? error.stderr.toString().trim() : "";
+    const output = stderr || error?.message || "Command failed or not found.";
+    results.push({ ...check, ok: false, output });
     failed = true;
   }
 }
@@ -41,6 +43,10 @@ console.log(`[${composeFile ? "OK" : "MISSING"}] docker compose file present`);
 
 if (!envFile) {
   console.log("Tip: copy .env.example to .env and fill in values.");
+}
+
+if (!envFile || !composeFile) {
+  failed = true;
 }
 
 if (failed) {
