@@ -4,6 +4,7 @@ import { parse } from "csv-parse/sync";
 import { prisma } from "@livestock/db";
 import { config } from "../config";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 
 const bool = (val: string | undefined, def = false) => {
   if (val === undefined) return def;
@@ -297,11 +298,11 @@ const seedAnimals = async () => {
       (hasColumn("brand") && normalizeValue(row.brand)) ||
       null;
 
-    const update: Record<string, unknown> = {};
-    const create: Record<string, unknown> = { uid };
+    const update: Prisma.AnimalUpdateInput = {};
+    const create: Prisma.AnimalCreateInput = { uid };
     const assign = (key: string, value: unknown) => {
-      update[key] = value;
-      create[key] = value;
+      (update as Record<string, unknown>)[key] = value;
+      (create as Record<string, unknown>)[key] = value;
     };
     const assignIfPresent = (key: string, value: unknown) => {
       if (hasColumn(key)) assign(key, value);
@@ -310,7 +311,9 @@ const seedAnimals = async () => {
     assignIfPresent("eid", eid);
     assignIfPresent("vid", vid);
     assignIfPresent("registration_at", registrationAt);
-    assignIfPresent("alert", alert);
+    if (hasColumn("alert") && alert !== null) {
+      assign("alert", alert);
+    }
     assignIfPresent("race", normalizeValue(row.race));
     assignIfPresent("sex", sex);
     assignIfPresent("color", normalizeValue(row.color));
