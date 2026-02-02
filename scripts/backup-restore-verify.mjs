@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-const { execSync } = require("child_process");
-const { existsSync, mkdirSync, statSync } = require("fs");
-const path = require("path");
+import { execSync } from "node:child_process";
+import { existsSync, mkdirSync, statSync } from "node:fs";
+import path from "node:path";
 
 const args = process.argv.slice(2);
 const fileArg = args.find((a) => a.startsWith("--file="));
