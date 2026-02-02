@@ -13,7 +13,7 @@
     "migrate:dev": "prisma migrate dev --name init",
     "db:backup": "node scripts/backup.js",
     "db:restore": "node scripts/restore.js",
-    "test": "echo \"(db) no tests yet\""
+    "test": "node test/db.health.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.10.2",
