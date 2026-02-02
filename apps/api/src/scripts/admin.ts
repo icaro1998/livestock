@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { prisma } from "@livestock/db";
 import { Role } from "@livestock/shared";
 import { config } from "../config";
@@ -6,8 +7,11 @@ import { config } from "../config";
 const usage = () => {
   console.log(`\nAdmin CLI (uses DATABASE_URL from .env):\n\n` +
     `  npm run admin --workspace @livestock/api -- --list\n` +
+    `  npm run admin --workspace @livestock/api -- --get --email=...\n` +
     `  npm run admin --workspace @livestock/api -- --create --email=... --password=... --role=admin|manager|viewer\n` +
+    `  npm run admin --workspace @livestock/api -- --create --email=... --generate-password --role=admin|manager|viewer\n` +
     `  npm run admin --workspace @livestock/api -- --set-password --email=... --password=...\n` +
+    `  npm run admin --workspace @livestock/api -- --set-password --email=... --generate-password\n` +
     `  npm run admin --workspace @livestock/api -- --set-role --email=... --role=admin|manager|viewer\n` +
     `  npm run admin --workspace @livestock/api -- --revoke-tokens --email=...\n`
   );
@@ -28,6 +32,8 @@ const getString = (flags: Record<string, string | boolean>, key: string) => {
   const val = flags[key];
   return typeof val === "string" ? val : undefined;
 };
+
+const generatePassword = () => crypto.randomBytes(12).toString("base64url");
 
 const parseRole = (value?: string): Role => {
   if (value === "admin" || value === "manager" || value === "viewer") return value as Role;
@@ -57,9 +63,29 @@ const main = async () => {
     return;
   }
 
+  if (flags.get) {
+    const email = getString(flags, "email");
+    if (!email) throw new Error("--email is required");
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, role: true, created_at: true, updated_at: true },
+    });
+    if (!user) throw new Error(`user not found: ${email}`);
+    console.table([
+      {
+        id: Number(user.id),
+        email: user.email,
+        role: user.role,
+        created_at: user.created_at.toISOString(),
+        updated_at: user.updated_at.toISOString(),
+      },
+    ]);
+    return;
+  }
+
   if (flags.create) {
     const email = getString(flags, "email");
-    const password = getString(flags, "password");
+    const password = getString(flags, "password") || (flags["generate-password"] ? generatePassword() : undefined);
     const role = parseRole(getString(flags, "role"));
     if (!email || !password) throw new Error("--email and --password are required");
 
@@ -69,17 +95,19 @@ const main = async () => {
     const hash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({ data: { email, password: hash, role } });
     console.log(`created user ${user.email} (${user.role})`);
+    if (flags["generate-password"]) console.log(`password: ${password}`);
     return;
   }
 
   if (flags["set-password"]) {
     const email = getString(flags, "email");
-    const password = getString(flags, "password");
+    const password = getString(flags, "password") || (flags["generate-password"] ? generatePassword() : undefined);
     if (!email || !password) throw new Error("--email and --password are required");
 
     const hash = await bcrypt.hash(password, 10);
     await prisma.user.update({ where: { email }, data: { password: hash } });
     console.log(`updated password for ${email}`);
+    if (flags["generate-password"]) console.log(`password: ${password}`);
     return;
   }
 

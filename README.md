@@ -141,6 +141,8 @@ See `.env.example`. Common ones:
 - `npm run import:costs --workspace @livestock/api -- --file=path.csv` - import CSV costs
   - optional: `--dry-run`, `--limit=N`, `--max-errors=N`, `--batch-size=N`, `--report=path.json`, `--allow-errors`
 - `npm run admin --workspace @livestock/api -- --list` - list users (admin CLI)
+- `npm run admin --workspace @livestock/api -- --get --email=...` - show user details
+- `npm run admin --workspace @livestock/api -- --create --email=... --generate-password --role=admin` - create user with generated password
 - `npm test` - run workspace tests (Vitest)
 
 ## CI and Ops
