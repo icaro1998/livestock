@@ -1,10 +1,43 @@
-# GANADERÍA AVANZADA – Livestock ERP Backend
+# GANADERï¿½A AVANZADA ï¿½ Livestock ERP Backend
 
 TypeScript/Fastify + PostgreSQL + Prisma + Redis backend with real-time event sourcing for collaborative livestock operations.
 
+
+## Go Live Today (LAN on Windows)
+Use these PowerShell commands for a LAN deployment on Windows.
+For production, start from `.env.production.example` and replace all placeholders.
+See `RUNBOOK_LAN.md` for daily checks, backups, and troubleshooting.
+
+1. Install dependencies:
+   ```powershell
+   npm install
+   ```
+2. Start Postgres + Redis + API:
+   ```powershell
+   docker compose -f infra/docker-compose.yml up -d
+   ```
+3. Apply migrations:
+   ```powershell
+   npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+   ```
+4. Seed bootstrap admin + sample animals:
+   ```powershell
+   npm run seed --workspace @livestock/api
+   ```
+5. Verify service health:
+   ```powershell
+   Invoke-RestMethod http://localhost:3000/healthz
+   Invoke-RestMethod http://localhost:3000/readyz
+   Invoke-RestMethod http://localhost:3000/metrics
+   ```
+6. Back up database:
+   ```powershell
+   npm run db:backup --workspace @livestock/db
+   ```
+
 ## Quick start (Windows / LAN)
 1. Install Node.js 20 and Docker Desktop.
-2. Copy `.env.example` to `.env` and adjust secrets if needed.
+2. Copy `.env.example` (dev) or `.env.lan.example` (LAN) to `.env` and adjust secrets if needed.
 3. Install deps (workspace-aware):
    ```powershell
    npm install
@@ -52,17 +85,17 @@ TypeScript/Fastify + PostgreSQL + Prisma + Redis backend with real-time event so
 - Redis pub/sub -> WS fan-out after successful transactions.
 
 ## Commands
-- `npm run migrate` (workspace @livestock/db) – deploy migrations.
-- `npm run db:backup` / `npm run db:restore -- --file=...` (workspace @livestock/db) – pg_dump/pg_restore helpers.
-- `npm run import:events --workspace @livestock/api -- --file=path.csv` – import universal event CSV.
-- `npm test` – runs workspace tests (Vitest).
+- `npm run migrate` (workspace @livestock/db) ï¿½ deploy migrations.
+- `npm run db:backup` / `npm run db:restore -- --file=...` (workspace @livestock/db) ï¿½ pg_dump/pg_restore helpers.
+- `npm run import:events --workspace @livestock/api -- --file=path.csv` ï¿½ import universal event CSV.
+- `npm test` ï¿½ runs workspace tests (Vitest).
 
 ## Files of interest
-- `packages/db/prisma/schema.prisma` – Prisma models.
-- `packages/db/prisma/migrations/0001_init/migration.sql` – authoritative DDL with dedup index.
-- `apps/api/src/routes/*` – REST routes.
-- `apps/api/src/plugins/ws.ts` – Redis + WebSocket broadcast path.
-- `importer_spec.md` – CSV/dedup/dimension rules.
+- `packages/db/prisma/schema.prisma` ï¿½ Prisma models.
+- `packages/db/prisma/migrations/0001_init/migration.sql` ï¿½ authoritative DDL with dedup index.
+- `apps/api/src/routes/*` ï¿½ REST routes.
+- `apps/api/src/plugins/ws.ts` ï¿½ Redis + WebSocket broadcast path.
+- `importer_spec.md` ï¿½ CSV/dedup/dimension rules.
 
 ## Operational notes
 - Analytics job (node-cron every 10 minutes) writes to `derived_metrics` and caches summary in Redis.
