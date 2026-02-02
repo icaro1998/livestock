@@ -1,0 +1,125 @@
+# Livestock Backend - Full File Tree Overview
+
+Repository URL (copyable):
+`https://github.com/icaro1998/livestock`
+
+Notes:
+- This is a complete tree of the repo (excluding `.git` and `node_modules`).
+- Generated from the current working tree.
+
+```
+./
+  .dockerignore
+  .env
+  .env.example
+  .gitignore
+  Dockerfile
+  README.md
+  importer_spec.md
+  package-lock.json
+  package.json
+  tsconfig.base.json
+  tsconfig.json
+.vscode/
+  launch.json
+  tasks.json
+apps/
+  api/
+    Dockerfile
+    package.json
+    tsconfig.json
+    src/
+      config.ts
+      index.ts
+      jobs/
+        analytics.ts
+      plugins/
+        auth.ts
+        openapi.ts
+        redis.ts
+        request-id.ts
+        ws.ts
+      repositories/
+      routes/
+        analytics.ts
+        animals.ts
+        auth.ts
+        costs.ts
+        dimensions.ts
+        events.ts
+        system.ts
+      scripts/
+        import-events.ts
+        seed.ts
+      services/
+        analytics.ts
+        animals.ts
+        auth.ts
+        costs.ts
+        dimensions.ts
+        events.ts
+      types/
+        fastify.d.ts
+      utils/
+        errors.ts
+    test/
+      smoke.ts
+data/
+  ANIMAL_REG - data.csv
+docs/
+  baseline/
+    docker-compose-logs.txt
+    docker-compose-ps.txt
+    docker-compose-version.txt
+    docker-version.txt
+    git-status.txt
+    node-npm-version.txt
+infra/
+  docker-compose.yml
+packages/
+  db/
+    package.json
+    tsconfig.json
+    dist/
+      index.d.ts
+      index.js
+    prisma/
+      schema.prisma
+      migrations/
+        migration_lock.toml
+        20260201081746_init/
+          migration.sql
+    scripts/
+      backup.js
+      restore.js
+    src/
+      index.ts
+  shared/
+    package.json
+    tsconfig.json
+    dist/
+      constants.d.ts
+      constants.js
+      events.d.ts
+      events.js
+      index.d.ts
+      index.js
+      pagination.d.ts
+      pagination.js
+      roles.d.ts
+      roles.js
+      schemas.d.ts
+      schemas.js
+    src/
+      constants.ts
+      events.ts
+      index.ts
+      pagination.ts
+      roles.ts
+      schemas.ts
+    test/
+      pagination.test.ts
+scripts/
+  dev.ps1
+  doctor.mjs
+```
