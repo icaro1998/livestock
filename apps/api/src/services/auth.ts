@@ -71,17 +71,21 @@ export const refreshUser = async (fastify: FastifyInstance, refreshToken: string
     where: { user_id: user.id, revoked: false },
     orderBy: { created_at: "desc" },
   });
-  let matched = null;
+  const matched: typeof tokens = [];
   for (const t of tokens) {
     if (await bcrypt.compare(refreshToken, t.token)) {
-      matched = t;
-      break;
+      matched.push(t);
     }
   }
-  if (!matched) throw new ApiError(401, "Refresh token revoked or missing");
-  if (matched.expires_at.getTime() < Date.now()) throw new ApiError(401, "Refresh token expired");
-  // rotate: mark old token revoked
-  await fastify.prisma.refreshToken.update({ where: { id: matched.id }, data: { revoked: true } });
+  if (!matched.length) throw new ApiError(401, "Refresh token revoked or missing");
+  if (matched.some((token) => token.expires_at.getTime() < Date.now())) {
+    throw new ApiError(401, "Refresh token expired");
+  }
+  // rotate: mark all matching tokens revoked (handles duplicates)
+  await fastify.prisma.refreshToken.updateMany({
+    where: { id: { in: matched.map((t) => t.id) } },
+    data: { revoked: true },
+  });
   const newTokens = await buildTokens(fastify, { id: user.id, role: user.role as Role, email: user.email });
   return { user, ...newTokens };
 };
