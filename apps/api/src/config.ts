@@ -1,17 +1,22 @@
 import dotenv from "dotenv";
 import path from "path";
 
-dotenv.config();
-// If running from apps/api, load repo-root .env as a fallback.
-if (!process.env.DATABASE_URL) {
-  const rootEnv = path.resolve(__dirname, "../../../.env");
-  dotenv.config({ path: rootEnv });
-}
-
 const bool = (val: string | undefined, def = false) => {
   if (val === undefined) return def;
   return ["1", "true", "yes", "on"].includes(val.toLowerCase());
 };
+
+const initialEnv = process.env.NODE_ENV || "development";
+const allowDotenv = initialEnv !== "production" || bool(process.env.ALLOW_DOTENV, false);
+
+if (allowDotenv) {
+  dotenv.config();
+  // If running from apps/api, load repo-root .env as a fallback.
+  if (!process.env.DATABASE_URL) {
+    const rootEnv = path.resolve(__dirname, "../../../.env");
+    dotenv.config({ path: rootEnv });
+  }
+}
 
 const repoRoot = path.resolve(__dirname, "../../../");
 const resolveRepoPath = (value: string | undefined, fallback: string) => {
@@ -19,7 +24,7 @@ const resolveRepoPath = (value: string | undefined, fallback: string) => {
   return path.isAbsolute(value) ? value : path.join(repoRoot, value);
 };
 
-const env = process.env.NODE_ENV || "development";
+const env = process.env.NODE_ENV || initialEnv;
 const isProduction = env === "production";
 
 const requireEnv = (key: string) => {

@@ -10,6 +10,10 @@ production env vars are missing or unsafe.
 - `JWT_REFRESH_SECRET` (32+ chars, not a placeholder)
 - `CORS_ORIGIN` (must be explicit, not `*`)
 
+## Dotenv behavior
+- `.env` loading is **disabled** in production by default.
+- To allow `.env` in production, set `ALLOW_DOTENV=true` explicitly.
+
 ## Forbidden in production
 - `BOOTSTRAP_ADMIN=true`
 - `OPENAPI_ENABLED=true`
