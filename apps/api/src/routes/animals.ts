@@ -49,10 +49,46 @@ export default async function animalRoutes(fastify: FastifyInstance) {
     reply.send(page);
   });
 
-  fastify.get("/export/animals", { preHandler: fastify.authorize("viewer") }, async (request, reply) => {
-    const query = exportAnimalsQuerySchema.partial().parse(request.query);
-    const rows = await exportAnimals(fastify, query);
-    const format = (query.format || "json").toString().toLowerCase();
+  fastify.get(
+    "/export/animals",
+    {
+      preHandler: fastify.authorize("viewer"),
+      schema: {
+        summary: "Export animals",
+        description: "Returns JSON by default or CSV when format=csv. Pagination via limit/cursor.",
+        querystring: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            format: { type: "string", enum: ["json", "csv"] },
+            limit: { type: "integer", minimum: 1, maximum: 5000 },
+            cursor: { type: "string" },
+            search: { type: "string" },
+            brand_mark: { type: "string" },
+            alert: { type: "boolean" },
+            min_age_months: { type: "integer" },
+            max_age_months: { type: "integer" },
+            min_weight: { type: "number" },
+            max_weight: { type: "number" },
+            last_event_type: { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            description: "Exported animals (JSON). For CSV, use format=csv.",
+            type: "object",
+            properties: {
+              data: { type: "array", items: { type: "object", additionalProperties: true } },
+              nextCursor: { type: ["string", "null"] },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const query = exportAnimalsQuerySchema.partial().parse(request.query);
+      const rows = await exportAnimals(fastify, query);
+      const format = (query.format || "json").toString().toLowerCase();
 
     const nextCursor = rows.length > 0 ? rows[rows.length - 1].uid : undefined;
 
@@ -94,6 +130,7 @@ export default async function animalRoutes(fastify: FastifyInstance) {
       return;
     }
 
-    reply.send({ data: rows, nextCursor });
-  });
+      reply.send({ data: rows, nextCursor });
+    }
+  );
 }

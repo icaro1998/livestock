@@ -30,47 +30,84 @@ export default async function eventRoutes(fastify: FastifyInstance) {
     reply.send(page);
   });
 
-  fastify.get("/export/events", { preHandler: fastify.authorize("viewer") }, async (request, reply) => {
-    const query = exportEventsQuerySchema.partial().parse(request.query);
-    const rows = await exportEvents(fastify, query);
-    const format = (query.format || "json").toString().toLowerCase();
-    const includePayload = query.include_payload === true;
-    const nextCursor = rows.length > 0 ? String(rows[rows.length - 1].event_id) : undefined;
+  fastify.get(
+    "/export/events",
+    {
+      preHandler: fastify.authorize("viewer"),
+      schema: {
+        summary: "Export events",
+        description: "Returns JSON by default or CSV when format=csv. Pagination via limit/cursor.",
+        querystring: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            format: { type: "string", enum: ["json", "csv"] },
+            include_payload: { type: "boolean" },
+            limit: { type: "integer", minimum: 1, maximum: 5000 },
+            cursor: { type: "string" },
+            uid: { type: "string" },
+            event_type: { type: "string" },
+            from: { type: "string" },
+            to: { type: "string" },
+            location_code: { type: "string" },
+            group_code: { type: "string" },
+            batch_id: { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            description: "Exported events (JSON). For CSV, use format=csv.",
+            type: "object",
+            properties: {
+              data: { type: "array", items: { type: "object", additionalProperties: true } },
+              nextCursor: { type: ["string", "null"] },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const query = exportEventsQuerySchema.partial().parse(request.query);
+      const rows = await exportEvents(fastify, query);
+      const format = (query.format || "json").toString().toLowerCase();
+      const includePayload = query.include_payload === true;
+      const nextCursor = rows.length > 0 ? String(rows[rows.length - 1].event_id) : undefined;
 
-    if (format === "csv") {
-      const columns = [
-        "event_id",
-        "uid",
-        "event_at",
-        "event_type",
-        "event_subtype",
-        "source_ref",
-        "batch_id",
-        "confidence",
-        "notes",
-        "location_from_id",
-        "location_to_id",
-        "group_id",
-        "party_id",
-        "product_id",
-        "created_at",
-      ];
-      if (includePayload) columns.push("payload");
-      const data = rows.map((r: any) => ({
-        ...r,
-        event_at: r.event_at ? r.event_at.toISOString() : null,
-        created_at: r.created_at ? r.created_at.toISOString() : null,
-        payload: includePayload ? safeJsonStringify(r.payload ?? null) : undefined,
-      }));
-      const csv = toCsv(data, columns);
-      reply
-        .header("content-type", "text/csv; charset=utf-8")
-        .header("content-disposition", "attachment; filename=events.csv")
-        .header("x-next-cursor", nextCursor ?? "")
-        .send(csv);
-      return;
+      if (format === "csv") {
+        const columns = [
+          "event_id",
+          "uid",
+          "event_at",
+          "event_type",
+          "event_subtype",
+          "source_ref",
+          "batch_id",
+          "confidence",
+          "notes",
+          "location_from_id",
+          "location_to_id",
+          "group_id",
+          "party_id",
+          "product_id",
+          "created_at",
+        ];
+        if (includePayload) columns.push("payload");
+        const data = rows.map((r: any) => ({
+          ...r,
+          event_at: r.event_at ? r.event_at.toISOString() : null,
+          created_at: r.created_at ? r.created_at.toISOString() : null,
+          payload: includePayload ? safeJsonStringify(r.payload ?? null) : undefined,
+        }));
+        const csv = toCsv(data, columns);
+        reply
+          .header("content-type", "text/csv; charset=utf-8")
+          .header("content-disposition", "attachment; filename=events.csv")
+          .header("x-next-cursor", nextCursor ?? "")
+          .send(csv);
+        return;
+      }
+
+      reply.send({ data: rows, nextCursor });
     }
-
-    reply.send({ data: rows, nextCursor });
-  });
+  );
 }
