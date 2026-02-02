@@ -5,6 +5,8 @@ import { Role } from "@livestock/shared";
 import crypto from "node:crypto";
 
 const ACCESS_PAYLOAD_FIELDS = ["id", "role", "email"] as const;
+const hashRefreshToken = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
+const isBcryptHash = (value: string) => value.startsWith("$2") && value.length >= 59;
 
 type UserPayload = { id: bigint; role: Role; email: string };
 
@@ -32,7 +34,7 @@ const buildTokens = async (fastify: FastifyInstance, user: { id: bigint; role: R
   );
   const decoded: any = fastify.jwt.decode(refreshToken);
   const exp = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 86400_000);
-  const hashed = await bcrypt.hash(refreshToken, 10);
+  const hashed = hashRefreshToken(refreshToken);
   const stored = await fastify.prisma.refreshToken.create({
     data: {
       token: hashed,
@@ -68,14 +70,23 @@ export const refreshUser = async (fastify: FastifyInstance, refreshToken: string
   await fastify.prisma.refreshToken.deleteMany({
     where: { user_id: user.id, OR: [{ revoked: true }, { expires_at: { lt: new Date() } }] },
   });
-  const tokens = await fastify.prisma.refreshToken.findMany({
-    where: { user_id: user.id, revoked: false },
-    orderBy: { created_at: "desc" },
+  const tokenHash = hashRefreshToken(refreshToken);
+  let matched: { id: bigint; expires_at: Date }[] = [];
+  const stored = await fastify.prisma.refreshToken.findFirst({
+    where: { user_id: user.id, revoked: false, token: tokenHash },
+    select: { id: true, expires_at: true },
   });
-  const matched: typeof tokens = [];
-  for (const t of tokens) {
-    if (await bcrypt.compare(refreshToken, t.token)) {
-      matched.push(t);
+  if (stored) {
+    matched = [stored];
+  } else {
+    const tokens = await fastify.prisma.refreshToken.findMany({
+      where: { user_id: user.id, revoked: false },
+      orderBy: { created_at: "desc" },
+    });
+    for (const t of tokens) {
+      if (isBcryptHash(t.token) && (await bcrypt.compare(refreshToken, t.token))) {
+        matched.push({ id: t.id, expires_at: t.expires_at });
+      }
     }
   }
   if (!matched.length) throw new ApiError(401, "Refresh token revoked or missing");
