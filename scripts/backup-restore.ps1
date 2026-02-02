@@ -28,8 +28,8 @@ if (-not $exists) {
   Write-Host "Restore DB already exists"
 }
 
-$env:DATABASE_URL = "postgresql://$PgUser:$PgPassword@localhost:5432/$SourceDb"
-$env:RESTORE_DATABASE_URL = "postgresql://$PgUser:$PgPassword@localhost:5432/$RestoreDb"
+$env:DATABASE_URL = "postgresql://${PgUser}:${PgPassword}@localhost:5432/$SourceDb"
+$env:RESTORE_DATABASE_URL = "postgresql://${PgUser}:${PgPassword}@localhost:5432/$RestoreDb"
 $env:POSTGRES_CONTAINER = $Container
 
 npm run db:backup-verify
