@@ -12,6 +12,7 @@ const bool = (val: string | undefined, def = false) => {
 
 const strict = bool(process.env.SEED_STRICT, false);
 const dryRun = bool(process.env.SEED_DRY_RUN, false);
+const reportPath = process.env.SEED_REPORT_PATH;
 
 const normalizeHeader = (value: string) =>
   value.replace(/^\uFEFF/, "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -343,6 +344,21 @@ const seedAnimals = async () => {
   console.log(
     `Seed summary: total=${records.length} processed=${processed} skipped=${skipped} warnings=${warnings.length} errors=${errors.length}`
   );
+  if (reportPath) {
+    const report = {
+      csvPath,
+      total: records.length,
+      processed,
+      skipped,
+      warnings,
+      errors,
+      dryRun,
+      strict,
+      generatedAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), "utf-8");
+    console.log(`Seed report written to ${reportPath}`);
+  }
   if (warnings.length) {
     console.warn(`Seed warnings (showing up to 5):\n- ${warnings.slice(0, 5).join("\n- ")}`);
   }
