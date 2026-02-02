@@ -29,6 +29,7 @@ export default async function costRoutes(fastify: FastifyInstance) {
       schema: {
         summary: "Export costs",
         description: "Returns JSON by default or CSV when format=csv. Pagination via limit/cursor.",
+        security: [{ bearerAuth: [] }],
         querystring: {
           type: "object",
           additionalProperties: false,

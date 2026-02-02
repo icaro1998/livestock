@@ -37,6 +37,7 @@ export default async function eventRoutes(fastify: FastifyInstance) {
       schema: {
         summary: "Export events",
         description: "Returns JSON by default or CSV when format=csv. Pagination via limit/cursor.",
+        security: [{ bearerAuth: [] }],
         querystring: {
           type: "object",
           additionalProperties: false,

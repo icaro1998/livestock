@@ -34,6 +34,7 @@ export default async function dimensionRoutes(fastify: FastifyInstance) {
       schema: {
         summary: "Export dimensions",
         description: "Returns JSON by default or CSV when format=csv. Optional table filter.",
+        security: [{ bearerAuth: [] }],
         querystring: {
           type: "object",
           additionalProperties: false,

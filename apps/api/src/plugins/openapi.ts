@@ -11,6 +11,15 @@ export default fp(async (fastify) => {
         version: "0.1.0",
       },
       servers: [{ url: "/" }],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+          },
+        },
+      },
     },
   });
   await fastify.register(swaggerUi, {
