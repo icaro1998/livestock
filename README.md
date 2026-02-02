@@ -127,6 +127,11 @@ See `.env.example`. Common ones:
 - `npm run import:events --workspace @livestock/api -- --file=path.csv` - import CSV events
 - `npm test` - run workspace tests (Vitest)
 
+## CI and Ops
+- GitHub Actions CI: `.github/workflows/ci.yml`
+- Production guidance: `docs/PRODUCTION.md`
+- Observability guidance: `docs/OBSERVABILITY.md`
+
 ## Files of interest
 - `packages/db/prisma/schema.prisma` - Prisma models
 - `packages/db/prisma/migrations/0001_init/migration.sql` - authoritative DDL
