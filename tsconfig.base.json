@@ -4,6 +4,7 @@
     "module": "CommonJS",
     "lib": ["ES2021"],
     "moduleResolution": "Node",
+    "ignoreDeprecations": "6.0",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
