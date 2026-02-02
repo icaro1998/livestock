@@ -15,6 +15,7 @@
     "test": "npm run test --workspaces",
     "format": "npm run format --workspaces",
     "fastify:boot": "tsx scripts/diagnose-api.ts",
+    "prod:validate": "tsx scripts/validate-prod-env.ts",
     "seed": "npm run seed --workspace @livestock/api",
     "migrate": "npm run migrate --workspace @livestock/db",
     "smoke": "npm run smoke --workspace @livestock/api",

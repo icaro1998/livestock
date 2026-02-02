@@ -31,3 +31,8 @@ production env vars are missing or unsafe.
 NODE_ENV=production node apps/api/dist/index.js
 ```
 If a required value is missing/weak, startup will fail with a descriptive error.
+
+## Validate without starting the server
+```
+NODE_ENV=production npm run prod:validate
+```
