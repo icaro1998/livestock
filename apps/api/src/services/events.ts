@@ -60,11 +60,11 @@ const findExistingByDedup = async (tx: DbClient, input: any) => {
   });
 };
 
-const createAnimalIfMissing = async (tx: PrismaClient, uid: string) => {
+const createAnimalIfMissing = async (tx: DbClient, uid: string) => {
   await tx.animal.upsert({ where: { uid }, update: {}, create: { uid } });
 };
 
-const createStrongArm = async (tx: PrismaClient, eventId: bigint, input: any) => {
+const createStrongArm = async (tx: DbClient, eventId: bigint, input: any) => {
   switch (input.event_type) {
     case "weight":
       await tx.weightEvent.create({
