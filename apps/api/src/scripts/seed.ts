@@ -144,7 +144,12 @@ const seedAnimals = async () => {
 
   const unknownColumns = headerList.filter((col) => !knownColumns.has(col));
   if (unknownColumns.length) {
-    warnings.push(`unknown columns: ${unknownColumns.join(", ")}`);
+    const message = `unknown columns: ${unknownColumns.join(", ")}`;
+    if (strict) {
+      errors.push(message);
+    } else {
+      warnings.push(message);
+    }
   }
 
   for (let index = 0; index < records.length; index++) {
@@ -160,16 +165,28 @@ const seedAnimals = async () => {
     }
 
     if (seen.has(uid)) {
-      warnings.push(`row ${lineNo}: duplicate uid ${uid} (skipped)`);
+      const message = `row ${lineNo}: duplicate uid ${uid} (skipped)`;
+      if (strict) {
+        errors.push(message);
+      } else {
+        warnings.push(message);
+      }
       skipped++;
       continue;
     }
     seen.add(uid);
 
+    let shouldSkip = false;
     const eid = normalizeValue(row.eid);
     if (eid) {
       if (seenEid.has(eid)) {
-        warnings.push(`row ${lineNo}: duplicate eid ${eid}`);
+        const message = `row ${lineNo}: duplicate eid ${eid}`;
+        if (strict) {
+          errors.push(message);
+          shouldSkip = true;
+        } else {
+          warnings.push(message);
+        }
       } else {
         seenEid.add(eid);
       }
@@ -178,10 +195,20 @@ const seedAnimals = async () => {
     const vid = normalizeValue(row.vid);
     if (vid) {
       if (seenVid.has(vid)) {
-        warnings.push(`row ${lineNo}: duplicate vid ${vid}`);
+        const message = `row ${lineNo}: duplicate vid ${vid}`;
+        if (strict) {
+          errors.push(message);
+          shouldSkip = true;
+        } else {
+          warnings.push(message);
+        }
       } else {
         seenVid.add(vid);
       }
+    }
+    if (shouldSkip) {
+      skipped++;
+      continue;
     }
 
     const sex = normalizeSex(row.sex);
@@ -255,6 +282,9 @@ const seedAnimals = async () => {
   } else {
     console.log(`Seeded ${processed} animals (${skipped} skipped)`);
   }
+  console.log(
+    `Seed summary: total=${records.length} processed=${processed} skipped=${skipped} warnings=${warnings.length} errors=${errors.length}`
+  );
   if (warnings.length) {
     console.warn(`Seed warnings (showing up to 5):\n- ${warnings.slice(0, 5).join("\n- ")}`);
   }
