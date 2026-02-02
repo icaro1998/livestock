@@ -6,7 +6,8 @@ import {
   WS_TOPICS,
 } from "@livestock/shared";
 import { ApiError } from "../utils/errors";
-import { createAnimal, getAnimalByUid, getAnimalTimeline, patchAnimal, searchAnimals } from "../services/animals";
+import { createAnimal, exportAnimals, getAnimalByUid, getAnimalTimeline, patchAnimal, searchAnimals } from "../services/animals";
+import { toCsv } from "../utils/csv";
 
 export default async function animalRoutes(fastify: FastifyInstance) {
   fastify.get("/animals", { preHandler: fastify.authorize("viewer") }, async (request, reply) => {
@@ -45,5 +46,50 @@ export default async function animalRoutes(fastify: FastifyInstance) {
     const query = request.query as any;
     const page = await getAnimalTimeline(fastify, uid, query);
     reply.send(page);
+  });
+
+  fastify.get("/export/animals", { preHandler: fastify.authorize("viewer") }, async (request, reply) => {
+    const query = request.query as any;
+    const rows = await exportAnimals(fastify, query);
+    const format = (query.format || "json").toString().toLowerCase();
+
+    if (format === "csv") {
+      const columns = [
+        "uid",
+        "eid",
+        "vid",
+        "registration_at",
+        "alert",
+        "race",
+        "sex",
+        "color",
+        "mother_name",
+        "father_name",
+        "brand_mark",
+        "birth_year",
+        "birth_month",
+        "birth_place",
+        "diagnostic",
+        "warning",
+        "notes",
+        "created_at",
+        "updated_at",
+        "version",
+      ];
+      const data = rows.map((r: any) => ({
+        ...r,
+        registration_at: r.registration_at ? r.registration_at.toISOString() : null,
+        created_at: r.created_at ? r.created_at.toISOString() : null,
+        updated_at: r.updated_at ? r.updated_at.toISOString() : null,
+      }));
+      const csv = toCsv(data, columns);
+      reply
+        .header("content-type", "text/csv; charset=utf-8")
+        .header("content-disposition", "attachment; filename=animals.csv")
+        .send(csv);
+      return;
+    }
+
+    reply.send(rows);
   });
 }

@@ -132,3 +132,46 @@ export const searchAnimals = async (fastify: FastifyInstance, params: any) => {
   });
   return buildCursorPage(animals, limit, (a) => a.uid);
 };
+
+export const exportAnimals = async (fastify: FastifyInstance, params: any) => {
+  const where: any = {};
+  if (params.search) {
+    const search = params.search;
+    where.OR = [
+      { uid: { contains: search } },
+      { eid: { contains: search } },
+      { brand_mark: { contains: search } },
+      { mother_name: { contains: search } },
+      { father_name: { contains: search } },
+    ];
+  }
+  if (params.brand_mark) where.brand_mark = params.brand_mark;
+  if (params.alert !== undefined) where.alert = params.alert === true || params.alert === "true";
+
+  if (params.min_age_months || params.max_age_months) {
+    const now = new Date();
+    const minAge = params.min_age_months ? Number(params.min_age_months) : undefined;
+    const maxAge = params.max_age_months ? Number(params.max_age_months) : undefined;
+    const and: any[] = [];
+    if (minAge !== undefined) {
+      const threshold = new Date(now);
+      threshold.setMonth(threshold.getMonth() - minAge);
+      const y = threshold.getFullYear();
+      const m = threshold.getMonth() + 1;
+      and.push({ OR: [{ birth_year: { lt: y } }, { birth_year: y, birth_month: { lte: m } }] });
+    }
+    if (maxAge !== undefined) {
+      const threshold = new Date(now);
+      threshold.setMonth(threshold.getMonth() - maxAge);
+      const y = threshold.getFullYear();
+      const m = threshold.getMonth() + 1;
+      and.push({ OR: [{ birth_year: { gt: y } }, { birth_year: y, birth_month: { gte: m } }] });
+    }
+    if (and.length) where.AND = and;
+  }
+
+  return fastify.prisma.animal.findMany({
+    where,
+    orderBy: { uid: "asc" },
+  });
+};

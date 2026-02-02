@@ -240,3 +240,30 @@ export const listEvents = async (fastify: FastifyInstance, query: any) => {
   });
   return buildCursorPage(events, limit, (e) => e.event_id);
 };
+
+export const exportEvents = async (fastify: FastifyInstance, query: any) => {
+  const where: any = {};
+  if (query.uid) where.uid = query.uid;
+  if (query.event_type) where.event_type = query.event_type;
+  if (query.batch_id) where.batch_id = query.batch_id;
+  if (query.from || query.to) {
+    where.event_at = {};
+    if (query.from) where.event_at.gte = toDate(query.from);
+    if (query.to) where.event_at.lte = toDate(query.to);
+  }
+  if (query.location_code) {
+    const loc = await fastify.prisma.location.findUnique({ where: { code: query.location_code } });
+    if (loc) where.OR = [{ location_from_id: loc.id }, { location_to_id: loc.id }];
+    else where.event_id = -1;
+  }
+  if (query.group_code) {
+    const group = await fastify.prisma.herdGroup.findUnique({ where: { code: query.group_code } });
+    where.group_id = group?.id ?? 0;
+  }
+
+  return fastify.prisma.animalEvent.findMany({
+    where,
+    orderBy: { event_id: "desc" },
+    include: { weight: true, movement: true, repro: true, health: true, nutrition: true },
+  });
+};

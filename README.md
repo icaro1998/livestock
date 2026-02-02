@@ -115,6 +115,7 @@ See `.env.example`. Common ones:
 - WebSocket endpoint: `/ws` (topics: `animal.updated`, `event.created`, `cost.created`, `dimension.updated`)
 - OpenAPI docs: `/docs` when `OPENAPI_ENABLED=true`
 - Health endpoints: `/healthz`, `/readyz`, `/metrics`, `/info`
+- Export endpoints: `/export/animals` and `/export/events` (add `?format=csv` for CSV)
 
 ## Auth and roles
 - JWT access + refresh tokens

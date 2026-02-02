@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { eventCreateSchema, bulkEventsSchema, eventsQuerySchema, IDEMPOTENCY_KEY_HEADER } from "@livestock/shared";
-import { createEvent, bulkCreateEvents, listEvents } from "../services/events";
+import { createEvent, bulkCreateEvents, exportEvents, listEvents } from "../services/events";
+import { toCsv } from "../utils/csv";
 
 export default async function eventRoutes(fastify: FastifyInstance) {
   fastify.post("/events", { preHandler: fastify.authorize("manager") }, async (request, reply) => {
@@ -27,5 +28,44 @@ export default async function eventRoutes(fastify: FastifyInstance) {
     const query = eventsQuerySchema.partial().parse(request.query);
     const page = await listEvents(fastify, query);
     reply.send(page);
+  });
+
+  fastify.get("/export/events", { preHandler: fastify.authorize("viewer") }, async (request, reply) => {
+    const query = request.query as any;
+    const rows = await exportEvents(fastify, query);
+    const format = (query.format || "json").toString().toLowerCase();
+
+    if (format === "csv") {
+      const columns = [
+        "event_id",
+        "uid",
+        "event_at",
+        "event_type",
+        "event_subtype",
+        "source_ref",
+        "batch_id",
+        "confidence",
+        "notes",
+        "location_from_id",
+        "location_to_id",
+        "group_id",
+        "party_id",
+        "product_id",
+        "created_at",
+      ];
+      const data = rows.map((r: any) => ({
+        ...r,
+        event_at: r.event_at ? r.event_at.toISOString() : null,
+        created_at: r.created_at ? r.created_at.toISOString() : null,
+      }));
+      const csv = toCsv(data, columns);
+      reply
+        .header("content-type", "text/csv; charset=utf-8")
+        .header("content-disposition", "attachment; filename=events.csv")
+        .send(csv);
+      return;
+    }
+
+    reply.send(rows);
   });
 }
