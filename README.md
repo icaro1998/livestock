@@ -144,6 +144,7 @@ See `.env.example`. Common ones:
 - `npm run admin --workspace @livestock/api -- --get --email=...` - show user details
 - `npm run admin --workspace @livestock/api -- --create --email=... --generate-password --role=admin` - create user with generated password
 - `npm test` - run workspace tests (Vitest)
+  - Optional API integration test: set `API_BASE_URL`, `API_ADMIN_EMAIL`, `API_ADMIN_PASSWORD`
 
 ## CI and Ops
 - GitHub Actions CI: `.github/workflows/ci.yml`

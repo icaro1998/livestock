@@ -8,12 +8,12 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -ws",
+    "build": "npm run build --workspaces",
     "doctor": "node scripts/doctor.mjs",
     "dev": "npm run dev --workspace @livestock/api",
-    "lint": "npm run lint -ws",
-    "test": "npm run test -ws",
-    "format": "npm run format -ws",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces",
+    "format": "npm run format --workspaces",
     "seed": "npm run seed --workspace @livestock/api",
     "migrate": "npm run migrate --workspace @livestock/db",
     "smoke": "npm run smoke --workspace @livestock/api",
