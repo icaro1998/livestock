@@ -7,12 +7,16 @@
     "composite": true,
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
     "paths": {
-      "@livestock/shared/*": ["../../packages/shared/src/*"],
-      "@livestock/shared": ["../../packages/shared/src"],
-      "@livestock/db": ["../../packages/db/src"],
-      "@livestock/db/*": ["../../packages/db/src/*"]
+      "@livestock/shared/*": ["../../packages/shared/dist/*"],
+      "@livestock/shared": ["../../packages/shared/dist"],
+      "@livestock/db": ["../../packages/db/dist"],
+      "@livestock/db/*": ["../../packages/db/dist/*"]
     }
   },
   "include": ["src/**/*"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/db" }
+  ],
   "exclude": ["dist", "node_modules"]
 }

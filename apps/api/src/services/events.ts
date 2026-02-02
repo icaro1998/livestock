@@ -42,7 +42,9 @@ const attachPayload = (input: any) => {
   return payload;
 };
 
-const findExistingByDedup = async (tx: PrismaClient, input: any) => {
+type DbClient = PrismaClient | Prisma.TransactionClient;
+
+const findExistingByDedup = async (tx: DbClient, input: any) => {
   const rows = await tx.$queryRawUnsafe<any[]>(
     `SELECT event_id FROM animal_event WHERE uid = $1 AND event_at = $2 AND event_type = $3 AND COALESCE(event_subtype,'') = $4 AND COALESCE(source_ref,'') = $5 LIMIT 1`,
     input.uid,
@@ -131,7 +133,7 @@ const createStrongArm = async (tx: PrismaClient, eventId: bigint, input: any) =>
   }
 };
 
-const createEventInternal = async (tx: PrismaClient, input: any) => {
+const createEventInternal = async (tx: DbClient, input: any) => {
   const payload = attachPayload(input);
   await createAnimalIfMissing(tx, input.uid);
   if (input.event_type === "movement") {

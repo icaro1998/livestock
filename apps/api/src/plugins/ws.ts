@@ -31,7 +31,7 @@ export default fp(async (fastify) => {
   });
 
   fastify.get("/ws", { websocket: true }, (connection) => {
-    const socket = connection.socket;
+    const socket = connection.socket as WebSocket & { on: (...args: any[]) => void };
     clients.add(socket);
     socket.on("close", () => clients.delete(socket));
   });

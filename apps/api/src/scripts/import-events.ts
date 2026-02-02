@@ -50,7 +50,7 @@ const main = async () => {
       };
       if (!input.uid || !input.event_at || !input.event_type) continue;
       const created = await createEvent(app as any, input, "import-script");
-      events.push(created?.event_id);
+      events.push(created?.event?.event_id);
     }
     console.log(`Imported ${events.length} events`);
   } catch (err) {

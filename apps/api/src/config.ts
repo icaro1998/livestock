@@ -1,6 +1,12 @@
 import dotenv from "dotenv";
+import path from "path";
 
 dotenv.config();
+// If running from apps/api, load repo-root .env as a fallback.
+if (!process.env.DATABASE_URL) {
+  const rootEnv = path.resolve(__dirname, "../../../.env");
+  dotenv.config({ path: rootEnv });
+}
 
 const bool = (val: string | undefined, def = false) => {
   if (val === undefined) return def;

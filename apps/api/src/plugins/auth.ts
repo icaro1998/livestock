@@ -10,7 +10,7 @@ export default fp(async (fastify) => {
 
   fastify.decorate("authenticate", async (request, reply) => {
     try {
-      const payload = await request.jwtVerify<{ id: number; role: Role; email: string }>();
+      const payload = (await request.jwtVerify()) as { id: number; role: Role; email: string };
       request.user = { id: BigInt(payload.id), role: payload.role, email: payload.email };
     } catch (err) {
       reply.code(401).send({ message: "Unauthorized" });
@@ -21,7 +21,8 @@ export default fp(async (fastify) => {
   fastify.decorate("authorize", (required: Role) => async (request, reply) => {
     await fastify.authenticate(request, reply);
     if (!request.user || reply.sent) return reply;
-    if (!roleAllows(request.user.role, required)) {
+    const user = request.user as { role: Role };
+    if (!roleAllows(user.role, required)) {
       reply.code(403).send({ message: "Forbidden" });
       return reply;
     }

@@ -27,7 +27,7 @@ const buildTokens = async (fastify: FastifyInstance, user: { id: bigint; role: R
   );
   const refreshToken = fastify.jwt.sign(
     { id: Number(user.id), role: user.role, email: user.email },
-    { secret: fastify.config.jwtRefreshSecret, expiresIn: fastify.config.jwtRefreshExpires }
+    { key: fastify.config.jwtRefreshSecret, expiresIn: fastify.config.jwtRefreshExpires }
   );
   const decoded: any = fastify.jwt.decode(refreshToken);
   const exp = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 86400_000);
@@ -54,7 +54,7 @@ export const loginUser = async (fastify: FastifyInstance, email: string, passwor
 export const refreshUser = async (fastify: FastifyInstance, refreshToken: string) => {
   let payload: any;
   try {
-    payload = fastify.jwt.verify(refreshToken, { secret: fastify.config.jwtRefreshSecret });
+    payload = fastify.jwt.verify(refreshToken, { key: fastify.config.jwtRefreshSecret });
   } catch (err) {
     throw new ApiError(401, "Invalid refresh token");
   }
