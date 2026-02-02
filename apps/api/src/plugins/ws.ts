@@ -37,9 +37,6 @@ export default fp(async (fastify) => {
       schema: {
         tags: ["WebSocket"],
         summary: "WebSocket endpoint",
-        response: {
-          101: { description: "Switching Protocols" },
-        },
       },
     },
     (connection) => {
