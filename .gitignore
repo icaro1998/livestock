@@ -18,3 +18,5 @@ dist
 *.log
 *.tsbuildinfo
 /apps/api/openapi.json
+backups/
+seed-report.json
