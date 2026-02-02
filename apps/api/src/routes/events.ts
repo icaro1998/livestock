@@ -34,7 +34,7 @@ export default async function eventRoutes(fastify: FastifyInstance) {
     const query = exportEventsQuerySchema.partial().parse(request.query);
     const rows = await exportEvents(fastify, query);
     const format = (query.format || "json").toString().toLowerCase();
-    const includePayload = query.include_payload === "true" || query.include_payload === true;
+    const includePayload = query.include_payload === true;
     const nextCursor = rows.length > 0 ? String(rows[rows.length - 1].event_id) : undefined;
 
     if (format === "csv") {
