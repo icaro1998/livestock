@@ -243,8 +243,16 @@ export const listEvents = async (fastify: FastifyInstance, query: any) => {
 
 export const exportEvents = async (fastify: FastifyInstance, query: any) => {
   const where: any = {};
-  const limit = query.limit ? Math.min(Number(query.limit), 5000) : undefined;
-  const cursor = query.cursor ? BigInt(query.cursor) : undefined;
+  const limit = query.limit === undefined ? 1000 : Math.min(Number(query.limit), 5000);
+  if (!Number.isFinite(limit) || limit <= 0) throw new ApiError(400, "Invalid limit");
+  let cursor: bigint | undefined;
+  if (query.cursor !== undefined && query.cursor !== null && query.cursor !== "") {
+    try {
+      cursor = BigInt(query.cursor);
+    } catch {
+      throw new ApiError(400, "Invalid cursor");
+    }
+  }
   if (query.uid) where.uid = query.uid;
   if (query.event_type) where.event_type = query.event_type;
   if (query.batch_id) where.batch_id = query.batch_id;

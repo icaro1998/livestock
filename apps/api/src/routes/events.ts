@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { eventCreateSchema, bulkEventsSchema, eventsQuerySchema, IDEMPOTENCY_KEY_HEADER } from "@livestock/shared";
 import { createEvent, bulkCreateEvents, exportEvents, listEvents } from "../services/events";
-import { toCsv } from "../utils/csv";
+import { safeJsonStringify, toCsv } from "../utils/csv";
 
 export default async function eventRoutes(fastify: FastifyInstance) {
   fastify.post("/events", { preHandler: fastify.authorize("manager") }, async (request, reply) => {
@@ -59,7 +59,7 @@ export default async function eventRoutes(fastify: FastifyInstance) {
         ...r,
         event_at: r.event_at ? r.event_at.toISOString() : null,
         created_at: r.created_at ? r.created_at.toISOString() : null,
-        payload: includePayload ? JSON.stringify(r.payload ?? null) : undefined,
+        payload: includePayload ? safeJsonStringify(r.payload ?? null) : undefined,
       }));
       const csv = toCsv(data, columns);
       reply

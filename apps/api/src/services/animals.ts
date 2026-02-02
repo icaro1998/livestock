@@ -135,7 +135,8 @@ export const searchAnimals = async (fastify: FastifyInstance, params: any) => {
 
 export const exportAnimals = async (fastify: FastifyInstance, params: any) => {
   const where: any = {};
-  const limit = params.limit ? Math.min(Number(params.limit), 5000) : undefined;
+  const limit = params.limit === undefined ? 1000 : Math.min(Number(params.limit), 5000);
+  if (!Number.isFinite(limit) || limit <= 0) throw new ApiError(400, "Invalid limit");
   const cursor = params.cursor ? params.cursor.toString() : undefined;
   if (params.search) {
     const search = params.search;
@@ -170,6 +171,34 @@ export const exportAnimals = async (fastify: FastifyInstance, params: any) => {
       and.push({ OR: [{ birth_year: { gt: y } }, { birth_year: y, birth_month: { gte: m } }] });
     }
     if (and.length) where.AND = and;
+  }
+
+  if (params.last_event_type) {
+    where.events = { some: { event_type: params.last_event_type } };
+  }
+
+  if (params.min_weight || params.max_weight) {
+    const min = params.min_weight ? Number(params.min_weight) : undefined;
+    const max = params.max_weight ? Number(params.max_weight) : undefined;
+    const rows: any[] = await fastify.prisma.$queryRaw`
+      WITH ranked AS (
+        SELECT ae.uid, we.weight_kg,
+               row_number() OVER (PARTITION BY ae.uid ORDER BY ae.event_at DESC, ae.event_id DESC) AS rn
+        FROM animal_event ae
+        JOIN weight_event we ON we.event_id = ae.event_id
+      )
+      SELECT uid, weight_kg FROM ranked WHERE rn = 1
+    `;
+    const uids = rows
+      .filter((r) => {
+        const w = Number(r.weight_kg || 0);
+        if (min !== undefined && w < min) return false;
+        if (max !== undefined && w > max) return false;
+        return true;
+      })
+      .map((r) => r.uid);
+    if (uids.length === 0) return [];
+    where.uid = { in: uids };
   }
 
   return fastify.prisma.animal.findMany({
