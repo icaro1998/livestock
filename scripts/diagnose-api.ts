@@ -1,6 +1,7 @@
-import buildServer from "../apps/api/src/index";
-
 const main = async () => {
+  process.env.DISABLE_ANALYTICS_JOBS = "true";
+  process.env.NODE_ENV = process.env.NODE_ENV || "test";
+  const { default: buildServer } = await import("../apps/api/src/index");
   const app = buildServer();
   try {
     await app.ready();
