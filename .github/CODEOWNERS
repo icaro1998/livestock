@@ -1,0 +1,14 @@
+# Default owner
+* @icaro1998
+
+# API + shared schemas
+/apps/api/ @icaro1998
+/packages/shared/ @icaro1998
+
+# Database + migrations
+/packages/db/ @icaro1998
+/packages/db/prisma/ @icaro1998
+
+# Infra + CI
+/infra/ @icaro1998
+/.github/workflows/ @icaro1998
