@@ -14,6 +14,7 @@ Use `.env.production.example` as a template. At minimum:
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
 - `NODE_ENV=production`
+- `CORS_ORIGIN` (explicit origin, not `*`)
 
 Recommended:
 - `OPENAPI_ENABLED=false`
@@ -21,6 +22,10 @@ Recommended:
 - `CORS_ORIGIN` set to your frontend domain(s)
 - `RATE_LIMIT_*` tuned for production traffic
 - `AUTO_MIGRATE=false` and `AUTO_SEED=false` (run migrations manually)
+
+Runtime enforcement:
+- When `NODE_ENV=production`, the API will refuse to boot if any required
+  secrets are missing or if unsafe flags are enabled (OPENAPI/BOOTSTRAP/AUTO_*).
 
 ## 3) Secrets storage strategy
 Choose one:
