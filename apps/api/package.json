@@ -14,6 +14,7 @@
         "smoke": "tsx test/smoke.ts",
         "seed": "tsx src/scripts/seed.ts",
         "import:events": "tsx src/scripts/import-events.ts",
+        "import:costs": "tsx src/scripts/import-costs.ts",
         "admin": "tsx src/scripts/admin.ts"
     },
     "dependencies": {

@@ -137,6 +137,9 @@ See `.env.example`. Common ones:
 - `npm run db:backup` / `npm run db:restore -- --file=...` (workspace @livestock/db)
 - `npm run db:reset` (workspace @livestock/db) - reset DB (dev only)
 - `npm run import:events --workspace @livestock/api -- --file=path.csv` - import CSV events
+  - optional: `--dry-run`, `--limit=N`, `--max-errors=N`, `--report=path.json`, `--allow-errors`
+- `npm run import:costs --workspace @livestock/api -- --file=path.csv` - import CSV costs
+  - optional: `--dry-run`, `--limit=N`, `--max-errors=N`, `--batch-size=N`, `--report=path.json`, `--allow-errors`
 - `npm run admin --workspace @livestock/api -- --list` - list users (admin CLI)
 - `npm test` - run workspace tests (Vitest)
 

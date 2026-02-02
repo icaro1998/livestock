@@ -2,8 +2,8 @@ import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
 import buildServer from "../index";
-import { createEvent } from "../services/events";
-import { eventCreateSchema } from "@livestock/shared";
+import { bulkCreateCosts } from "../services/costs";
+import { costCreateSchema } from "@livestock/shared";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);
@@ -14,7 +14,7 @@ const getArg = (name: string) => {
 };
 
 const printUsage = () => {
-  console.log("Usage: npm run import:events -- --file=path.csv [--dry-run] [--limit=N] [--max-errors=N] [--report=path.json] [--allow-errors]");
+  console.log("Usage: npm run import:costs -- --file=path.csv [--dry-run] [--limit=N] [--max-errors=N] [--batch-size=N] [--report=path.json] [--allow-errors]");
 };
 
 if (flag("help") || flag("h")) {
@@ -38,16 +38,22 @@ const dryRun = flag("dry-run") || flag("dry");
 const allowErrors = flag("allow-errors");
 const limitRaw = getArg("limit");
 const maxErrorsRaw = getArg("max-errors");
+const batchSizeRaw = getArg("batch-size");
 const reportPath = getArg("report");
 
 const limit = limitRaw ? Number(limitRaw) : undefined;
 const maxErrors = maxErrorsRaw ? Number(maxErrorsRaw) : 50;
+const batchSize = batchSizeRaw ? Number(batchSizeRaw) : 200;
 if (limit !== undefined && (!Number.isFinite(limit) || limit <= 0)) {
   console.error("--limit must be a positive number");
   process.exit(1);
 }
 if (!Number.isFinite(maxErrors) || maxErrors <= 0) {
   console.error("--max-errors must be a positive number");
+  process.exit(1);
+}
+if (!Number.isFinite(batchSize) || batchSize <= 0) {
+  console.error("--batch-size must be a positive number");
   process.exit(1);
 }
 
@@ -78,16 +84,6 @@ const parseNumber = (value: any, field: string, errors: string[]) => {
   return num;
 };
 
-const parseIntField = (value: any, field: string, errors: string[]) => {
-  const num = parseNumber(value, field, errors);
-  if (num === undefined) return undefined;
-  if (!Number.isInteger(num)) {
-    errors.push(`Invalid integer for ${field}`);
-    return undefined;
-  }
-  return num;
-};
-
 const validateDate = (value: any, field: string, errors: string[]) => {
   if (value === undefined || value === null || `${value}`.trim() === "") return undefined;
   const str = `${value}`;
@@ -107,66 +103,51 @@ const summary = {
   valid: 0,
   invalid: 0,
   imported: 0,
-  deduped: 0,
 };
 
 const errors: Array<{ row: number; message: string; data?: any }> = [];
 
 const buildInput = (row: Record<string, any>, rowErrors: string[]) => {
-  const eventTypeRaw = getField(row, "event_type", "eventtype", "type");
-  const eventType = eventTypeRaw ? `${eventTypeRaw}`.trim().toLowerCase() : undefined;
-  const eventAt = validateDate(getField(row, "event_at", "eventat", "date"), "event_at", rowErrors);
-
+  const costAt = validateDate(getField(row, "cost_at", "costat"), "cost_at", rowErrors);
   const input: any = {
+    cost_at: costAt,
+    scope: getField(row, "scope"),
     uid: getField(row, "uid"),
-    event_at: eventAt,
-    event_type: eventType,
-    event_subtype: getField(row, "event_subtype", "eventsubtype"),
-    source_ref: getField(row, "source_ref", "sourceref", "idempotency_key"),
+    group_code: getField(row, "group_code"),
+    location_code: getField(row, "location_code"),
+    category: getField(row, "category"),
+    product_code: getField(row, "product_code"),
+    party_code: getField(row, "party_code"),
+    amount: parseNumber(getField(row, "amount"), "amount", rowErrors),
+    currency: getField(row, "currency"),
+    quantity: parseNumber(getField(row, "quantity"), "quantity", rowErrors),
+    unit: getField(row, "unit"),
+    source_ref: getField(row, "source_ref", "sourceref"),
     batch_id: getField(row, "batch_id", "batchid"),
     notes: getField(row, "notes"),
-    confidence: parseNumber(getField(row, "confidence"), "confidence", rowErrors),
-    location_from_code: getField(row, "location_from_code", "location_from"),
-    location_to_code: getField(row, "location_to_code", "location_to"),
-    group_code: getField(row, "group_code"),
-    party_code: getField(row, "party_code"),
-    product_code: getField(row, "product_code"),
-    weight_kg: parseNumber(getField(row, "weight_kg"), "weight_kg", rowErrors),
-    method: getField(row, "method"),
-    shrink_pct: parseNumber(getField(row, "shrink_pct"), "shrink_pct", rowErrors),
-    reason: getField(row, "reason"),
-    distance_km: parseNumber(getField(row, "distance_km"), "distance_km", rowErrors),
-    transport_party_code: getField(row, "transport_party_code"),
-    repro_action: getField(row, "repro_action"),
-    sire_uid: getField(row, "sire_uid"),
-    dam_uid: getField(row, "dam_uid"),
-    result: getField(row, "result"),
-    calf_uid: getField(row, "calf_uid"),
-    gestation_days: parseIntField(getField(row, "gestation_days"), "gestation_days", rowErrors),
-    action: getField(row, "action"),
-    diagnosis: getField(row, "diagnosis"),
-    dose: parseNumber(getField(row, "dose"), "dose", rowErrors),
-    dose_unit: getField(row, "dose_unit"),
-    withdrawal_days: parseIntField(getField(row, "withdrawal_days"), "withdrawal_days", rowErrors),
-    ration_code: getField(row, "ration_code"),
-    intake_kg_day: parseNumber(getField(row, "intake_kg_day"), "intake_kg_day", rowErrors),
-    supplement_code: getField(row, "supplement_code"),
   };
 
-  if (!input.uid) rowErrors.push("uid is required");
-  if (!input.event_at) rowErrors.push("event_at is required");
-  if (!input.event_type) rowErrors.push("event_type is required");
-  if (input.event_type === "movement") {
-    if (!input.location_from_code || !input.location_to_code) {
-      rowErrors.push("movement requires location_from_code and location_to_code");
-    }
-  }
+  if (!input.cost_at) rowErrors.push("cost_at is required");
+  if (!input.scope) rowErrors.push("scope is required");
+  if (!input.category) rowErrors.push("category is required");
+  if (input.amount === undefined) rowErrors.push("amount is required");
 
   return input;
 };
 
 const main = async () => {
   const app = dryRun ? null : buildServer();
+  const batch: any[] = [];
+
+  const flush = async () => {
+    if (batch.length === 0 || dryRun) {
+      batch.length = 0;
+      return;
+    }
+    const created = await bulkCreateCosts(app as any, batch, "import-script");
+    summary.imported += created.length;
+    batch.length = 0;
+  };
 
   try {
     for (let idx = 0; idx < records.length; idx += 1) {
@@ -181,7 +162,7 @@ const main = async () => {
         summary.invalid += 1;
         errors.push({ row: idx + 1, message: rowErrors.join("; "), data: row });
       } else {
-        const parsed = eventCreateSchema.safeParse(input);
+        const parsed = costCreateSchema.safeParse(input);
         if (!parsed.success) {
           summary.invalid += 1;
           const issues = parsed.error.issues.map((i) => i.message).join("; ");
@@ -191,9 +172,8 @@ const main = async () => {
           summary.imported += 1;
         } else {
           summary.valid += 1;
-          const result = await createEvent(app as any, parsed.data, "import-script");
-          if (result.dedup) summary.deduped += 1;
-          else summary.imported += 1;
+          batch.push(parsed.data);
+          if (batch.length >= batchSize) await flush();
         }
       }
 
@@ -202,6 +182,8 @@ const main = async () => {
         break;
       }
     }
+
+    await flush();
   } catch (err) {
     console.error(err);
     process.exitCode = 1;
