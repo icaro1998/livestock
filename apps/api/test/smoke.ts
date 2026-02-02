@@ -21,6 +21,21 @@ const get = async (url: string, token?: string) => {
   return res.json();
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const waitForHealth = async () => {
+  for (let i = 0; i < 30; i++) {
+    try {
+      const res = await fetch(base + "/healthz");
+      if (res.ok) return;
+    } catch {
+      // ignore and retry
+    }
+    await sleep(1000);
+  }
+  throw new Error("healthz not ready");
+};
+
 const getText = async (url: string, token?: string) => {
   const res = await fetch(base + url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
   if (!res.ok) throw new Error(`${url} failed ${res.status}`);
@@ -28,6 +43,7 @@ const getText = async (url: string, token?: string) => {
 };
 
 const main = async () => {
+  await waitForHealth();
   const health = await get("/healthz");
   console.log("healthz", health);
 
