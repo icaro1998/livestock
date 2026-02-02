@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import bcrypt from "bcryptjs";
 import { ApiError } from "../utils/errors";
 import { Role } from "@livestock/shared";
+import crypto from "node:crypto";
 
 const ACCESS_PAYLOAD_FIELDS = ["id", "role", "email"] as const;
 
@@ -26,7 +27,7 @@ const buildTokens = async (fastify: FastifyInstance, user: { id: bigint; role: R
     { expiresIn: fastify.config.jwtAccessExpires }
   );
   const refreshToken = fastify.jwt.sign(
-    { id: Number(user.id), role: user.role, email: user.email },
+    { id: Number(user.id), role: user.role, email: user.email, jti: crypto.randomUUID() },
     { key: fastify.config.jwtRefreshSecret, expiresIn: fastify.config.jwtRefreshExpires }
   );
   const decoded: any = fastify.jwt.decode(refreshToken);
