@@ -18,7 +18,8 @@
     "migrate": "npm run migrate --workspace @livestock/db",
     "smoke": "npm run smoke --workspace @livestock/api",
     "db:backup": "npm run db:backup --workspace @livestock/db",
-    "db:restore": "npm run db:restore --workspace @livestock/db"
+    "db:restore": "npm run db:restore --workspace @livestock/db",
+    "db:reset": "npm run db:reset --workspace @livestock/db"
   },
   "engines": {
     "node": ">=20.0.0",

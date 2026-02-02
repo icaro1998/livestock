@@ -9,6 +9,7 @@
     "clean": "rimraf dist",
     "generate": "prisma generate",
     "migrate": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force --skip-seed",
     "migrate:dev": "prisma migrate dev --name init",
     "db:backup": "node scripts/backup.js",
     "db:restore": "node scripts/restore.js",

@@ -94,6 +94,11 @@ Optional flags:
 - `-Smoke` run smoke tests after startup
 - `-SkipSeed` skip seeding
 
+Reset DB script (dev only):
+```powershell
+./scripts/reset-db.ps1
+```
+
 ## Default credentials
 - admin@example.com / admin1234 (created by seed if no users exist)
 
@@ -109,7 +114,7 @@ See `.env.example`. Common ones:
 - REST on port `3000`
 - WebSocket endpoint: `/ws` (topics: `animal.updated`, `event.created`, `cost.created`, `dimension.updated`)
 - OpenAPI docs: `/docs` when `OPENAPI_ENABLED=true`
-- Health endpoints: `/healthz`, `/readyz`, `/metrics`
+- Health endpoints: `/healthz`, `/readyz`, `/metrics`, `/info`
 
 ## Auth and roles
 - JWT access + refresh tokens
@@ -125,6 +130,7 @@ See `.env.example`. Common ones:
 ## Commands
 - `npm run migrate` (workspace @livestock/db) - deploy migrations
 - `npm run db:backup` / `npm run db:restore -- --file=...` (workspace @livestock/db)
+- `npm run db:reset` (workspace @livestock/db) - reset DB (dev only)
 - `npm run import:events --workspace @livestock/api -- --file=path.csv` - import CSV events
 - `npm test` - run workspace tests (Vitest)
 

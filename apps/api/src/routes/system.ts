@@ -1,4 +1,5 @@
 import { FastifyInstance } from "fastify";
+import pkg from "../../package.json";
 
 export default async function systemRoutes(fastify: FastifyInstance) {
   fastify.get("/healthz", async () => ({ status: "ok" }));
@@ -22,4 +23,10 @@ export default async function systemRoutes(fastify: FastifyInstance) {
       heapTotal: mem.heapTotal,
     };
   });
+
+  fastify.get("/info", async () => ({
+    name: pkg.name,
+    version: pkg.version,
+    env: process.env.NODE_ENV || "development",
+  }));
 }
