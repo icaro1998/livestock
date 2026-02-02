@@ -5,7 +5,7 @@ const rawBaseUrl = process.env.API_BASE_URL;
 const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/$/, "") : undefined;
 const email = process.env.API_ADMIN_EMAIL;
 const password = process.env.API_ADMIN_PASSWORD;
-const timeoutMs = Number(process.env.API_HEALTH_TIMEOUT_MS || 2000);
+const timeoutMs = Number(process.env.API_HEALTH_TIMEOUT_MS || 10000);
 const requestTimeoutMs = Number(process.env.API_REQUEST_TIMEOUT_MS || 5000);
 
 const request = async (url: string, options?: RequestInit) => {
@@ -20,16 +20,21 @@ const request = async (url: string, options?: RequestInit) => {
 
 const checkApi = async () => {
   if (!baseUrl || !email || !password) return false;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(`${baseUrl}/healthz`, { signal: controller.signal });
-    return res.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1000);
+    try {
+      const res = await fetch(`${baseUrl}/healthz`, { signal: controller.signal });
+      if (res.ok) return true;
+    } catch {
+      // ignore and retry
+    } finally {
+      clearTimeout(timer);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
+  return false;
 };
 
 const apiReady = await checkApi();
