@@ -6,6 +6,7 @@
         "lint",
         "type-check",
         "unit-tests",
+        "fastify-boot-smoke",
         "integration-tests",
         "build-and-healthcheck",
         "migration-lint",
@@ -26,7 +27,8 @@
     "typeCheck": "npm run type-check",
     "unit": "npm run test:unit",
     "integration": "npm run test:integration",
-    "smoke": "npm run test:smoke"
+    "smoke": "npm run test:smoke",
+    "fastifyBoot": "npm run fastify:boot"
   },
   "validationTrees": {
     "preCommit": [
@@ -60,6 +62,11 @@
         "name": "integration-tests",
         "requires": ["unit-tests"],
         "command": "docker-compose -f docker-compose.test.yml up -d && npm run test:integration"
+      },
+      {
+        "name": "fastify-boot-smoke",
+        "requires": ["type-check"],
+        "command": "npm run fastify:boot"
       },
       {
         "name": "build-and-healthcheck",
@@ -106,6 +113,36 @@
       "registry": "json-schema"
     }
   },
+  "schemaRules": [
+    {
+      "area": "api-schema-validation",
+      "rule": "All Fastify route schemas must compile at boot time",
+      "enforcement": "Run Fastify instance with all plugins registered; fail if any schema throws during ready()",
+      "required": true
+    }
+  ],
+  "incidentLog": [
+    {
+      "incident": {
+        "id": "fastify-schema-boot-failure",
+        "type": "runtime-blocker",
+        "source": "apps/api/src/plugins/ws.ts",
+        "error": "FastifyError: schema is invalid: data/properties/description must be object,boolean",
+        "trigger": "fastify.route GET /ws",
+        "result": "Server never bound to port 3000; /healthz failed",
+        "detection": "manual; Docker container logs post CI timeout"
+      },
+      "resolution": {
+        "change": "Refactor response schema to use proper JSON Schema object or remove invalid response block",
+        "verifiedBy": [
+          "Successful boot log from Fastify",
+          "healthz and metrics reachable",
+          "CI smoke test green"
+        ]
+      },
+      "codexUpdateRequired": true
+    }
+  ],
   "branchPolicies": {
     "requirePassingCI": true,
     "requireApprovals": 1,
