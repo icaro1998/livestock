@@ -32,7 +32,7 @@ services:
       context: ..
       dockerfile: apps/api/Dockerfile
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3000
       HOST: 0.0.0.0
       DATABASE_URL: postgresql://livestock:livestock@postgres:5432/livestock
