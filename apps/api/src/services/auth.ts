@@ -33,14 +33,15 @@ const buildTokens = async (fastify: FastifyInstance, user: { id: bigint; role: R
   const decoded: any = fastify.jwt.decode(refreshToken);
   const exp = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 86400_000);
   const hashed = await bcrypt.hash(refreshToken, 10);
-  await fastify.prisma.refreshToken.create({
+  const stored = await fastify.prisma.refreshToken.create({
     data: {
       token: hashed,
       user_id: BigInt(user.id),
       expires_at: exp,
     },
+    select: { id: true },
   });
-  return { accessToken, refreshToken, expires_at: exp };
+  return { accessToken, refreshToken, expires_at: exp, refreshTokenId: stored.id };
 };
 
 export const loginUser = async (fastify: FastifyInstance, email: string, password: string) => {
@@ -87,7 +88,11 @@ export const refreshUser = async (fastify: FastifyInstance, refreshToken: string
     data: { revoked: true },
   });
   const newTokens = await buildTokens(fastify, { id: user.id, role: user.role as Role, email: user.email });
-  return { user, ...newTokens };
+  await fastify.prisma.refreshToken.updateMany({
+    where: { user_id: user.id, revoked: false, id: { not: newTokens.refreshTokenId } },
+    data: { revoked: true },
+  });
+  return { user, accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken, expires_at: newTokens.expires_at };
 };
 
 export const ensureBootstrapPossible = async (fastify: FastifyInstance) => {
