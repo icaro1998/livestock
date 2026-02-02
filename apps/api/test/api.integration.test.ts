@@ -112,4 +112,40 @@ maybeDescribe("api integration", () => {
     const csv = await csvRes.text();
     expect(csv.startsWith("event_id,")).toBe(true);
   });
+
+  it("refresh rotates and revokes old token", async () => {
+    const loginRes = await request(`${baseUrl}/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    expect(loginRes.status).toBe(200);
+    const login = await loginRes.json();
+    const refreshToken = login.refreshToken as string;
+
+    const refreshRes = await request(`${baseUrl}/auth/refresh`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+    expect(refreshRes.status).toBe(200);
+    const refreshed = await refreshRes.json();
+    expect(refreshed.refreshToken).not.toBe(refreshToken);
+
+    const reuseRes = await request(`${baseUrl}/auth/refresh`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+    expect(reuseRes.status).toBe(401);
+  });
+
+  it("rejects invalid refresh token", async () => {
+    const badRes = await request(`${baseUrl}/auth/refresh`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken: "not-a-token" }),
+    });
+    expect(badRes.status).toBe(401);
+  });
 });

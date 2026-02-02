@@ -47,6 +47,9 @@ export const loginUser = async (fastify: FastifyInstance, email: string, passwor
   if (!user) throw new ApiError(401, "Invalid credentials");
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) throw new ApiError(401, "Invalid credentials");
+  await fastify.prisma.refreshToken.deleteMany({
+    where: { user_id: user.id, OR: [{ revoked: true }, { expires_at: { lt: new Date() } }] },
+  });
   const tokens = await buildTokens(fastify, { id: user.id, role: user.role as Role, email: user.email });
   return { user, ...tokens };
 };
@@ -60,6 +63,9 @@ export const refreshUser = async (fastify: FastifyInstance, refreshToken: string
   }
   const user = await fastify.prisma.user.findUnique({ where: { id: BigInt(payload.id) } });
   if (!user) throw new ApiError(401, "User not found");
+  await fastify.prisma.refreshToken.deleteMany({
+    where: { user_id: user.id, OR: [{ revoked: true }, { expires_at: { lt: new Date() } }] },
+  });
   const tokens = await fastify.prisma.refreshToken.findMany({
     where: { user_id: user.id, revoked: false },
     orderBy: { created_at: "desc" },
