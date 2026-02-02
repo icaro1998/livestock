@@ -49,6 +49,19 @@ $env:RESTORE_DATABASE_URL="postgresql://user:pass@host:5432/livestock_restore"
 node scripts/backup-restore-verify.mjs --file=backups\my.dump
 ```
 
+## One-command PowerShell helper (recommended on Windows)
+Creates the restore DB if missing, runs backup+verify+restore, and can clean up:
+
+```powershell
+.\scripts\backup-restore.ps1
+```
+
+Optional flags:
+
+```powershell
+.\scripts\backup-restore.ps1 -RestoreDb livestock_restore -Cleanup
+```
+
 ## Notes
 - The verify script is safe by default. It only runs a restore if `RESTORE_DATABASE_URL` is set or `--restore-url=...` is passed.
 - If `pg_dump/pg_restore` are missing, the script falls back to the running `postgres` Docker container (service name `postgres`). You can override with `POSTGRES_CONTAINER`.
