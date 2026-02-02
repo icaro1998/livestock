@@ -135,6 +135,8 @@ export const searchAnimals = async (fastify: FastifyInstance, params: any) => {
 
 export const exportAnimals = async (fastify: FastifyInstance, params: any) => {
   const where: any = {};
+  const limit = params.limit ? Math.min(Number(params.limit), 5000) : undefined;
+  const cursor = params.cursor ? params.cursor.toString() : undefined;
   if (params.search) {
     const search = params.search;
     where.OR = [
@@ -173,5 +175,8 @@ export const exportAnimals = async (fastify: FastifyInstance, params: any) => {
   return fastify.prisma.animal.findMany({
     where,
     orderBy: { uid: "asc" },
+    take: limit,
+    skip: cursor ? 1 : 0,
+    cursor: cursor ? { uid: cursor } : undefined,
   });
 };

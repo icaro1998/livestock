@@ -34,6 +34,7 @@ export default async function eventRoutes(fastify: FastifyInstance) {
     const query = request.query as any;
     const rows = await exportEvents(fastify, query);
     const format = (query.format || "json").toString().toLowerCase();
+    const includePayload = query.include_payload === "true" || query.include_payload === true;
 
     if (format === "csv") {
       const columns = [
@@ -53,10 +54,12 @@ export default async function eventRoutes(fastify: FastifyInstance) {
         "product_id",
         "created_at",
       ];
+      if (includePayload) columns.push("payload");
       const data = rows.map((r: any) => ({
         ...r,
         event_at: r.event_at ? r.event_at.toISOString() : null,
         created_at: r.created_at ? r.created_at.toISOString() : null,
+        payload: includePayload ? JSON.stringify(r.payload ?? null) : undefined,
       }));
       const csv = toCsv(data, columns);
       reply

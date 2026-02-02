@@ -243,6 +243,8 @@ export const listEvents = async (fastify: FastifyInstance, query: any) => {
 
 export const exportEvents = async (fastify: FastifyInstance, query: any) => {
   const where: any = {};
+  const limit = query.limit ? Math.min(Number(query.limit), 5000) : undefined;
+  const cursor = query.cursor ? BigInt(query.cursor) : undefined;
   if (query.uid) where.uid = query.uid;
   if (query.event_type) where.event_type = query.event_type;
   if (query.batch_id) where.batch_id = query.batch_id;
@@ -264,6 +266,9 @@ export const exportEvents = async (fastify: FastifyInstance, query: any) => {
   return fastify.prisma.animalEvent.findMany({
     where,
     orderBy: { event_id: "desc" },
+    take: limit,
+    skip: cursor ? 1 : 0,
+    cursor: cursor ? { event_id: cursor } : undefined,
     include: { weight: true, movement: true, repro: true, health: true, nutrition: true },
   });
 };
