@@ -8,17 +8,56 @@ const register = (
   path: string,
   table: "location" | "herdGroup" | "party" | "product"
 ) => {
-  fastify.get(path, { preHandler: fastify.authorize("viewer") }, async (_, reply) => {
-    const rows = await listDimension(fastify.prisma, table);
-    reply.send(rows);
-  });
+  const title = table === "herdGroup" ? "Group" : table.charAt(0).toUpperCase() + table.slice(1);
 
-  fastify.post(path, { preHandler: fastify.authorize("admin") }, async (request, reply) => {
-    const body = dimensionCreateSchema.parse(request.body);
-    const created = await createDimension(fastify.prisma, table, body);
-    await fastify.publish(WS_TOPICS.dimensionUpdated, { table, code: created.code }, request.id);
-    reply.code(201).send(created);
-  });
+  fastify.get(
+    path,
+    {
+      preHandler: fastify.authorize("viewer"),
+      schema: {
+        tags: ["Dimensions"],
+        summary: `List ${title.toLowerCase()}s`,
+        response: {
+          200: { type: "array", items: { type: "object", additionalProperties: true } },
+        },
+      },
+    },
+    async (_, reply) => {
+      const rows = await listDimension(fastify.prisma, table);
+      reply.send(rows);
+    }
+  );
+
+  fastify.post(
+    path,
+    {
+      preHandler: fastify.authorize("admin"),
+      schema: {
+        tags: ["Dimensions"],
+        summary: `Create ${title.toLowerCase()}`,
+        body: {
+          type: "object",
+          additionalProperties: true,
+          required: ["code"],
+          properties: {
+            code: { type: "string" },
+            name: { type: "string" },
+            type: { type: "string" },
+            meta: { type: "object", additionalProperties: true },
+          },
+        },
+        response: {
+          201: { type: "object", additionalProperties: true },
+        },
+      },
+    },
+    async (request, reply) => {
+      const body = dimensionCreateSchema.parse(request.body);
+      const created = await createDimension(fastify.prisma, table, body);
+      await fastify.publish(WS_TOPICS.dimensionUpdated, { table, code: created.code }, request.id);
+      reply.code(201).send(created);
+    }
+  );
 };
 
 export default async function dimensionRoutes(fastify: FastifyInstance) {
@@ -32,12 +71,13 @@ export default async function dimensionRoutes(fastify: FastifyInstance) {
     {
       preHandler: fastify.authorize("viewer"),
       schema: {
+        tags: ["Exports", "Dimensions"],
         summary: "Export dimensions",
         description: "Returns JSON by default or CSV when format=csv. Optional table filter.",
         security: [{ bearerAuth: [] }],
         querystring: {
           type: "object",
-          additionalProperties: false,
+          additionalProperties: true,
           properties: {
             format: { type: "string", enum: ["json", "csv"] },
             table: { type: "string", enum: ["location", "herdGroup", "party", "product"] },

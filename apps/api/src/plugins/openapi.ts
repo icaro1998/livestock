@@ -42,6 +42,17 @@ export default fp(async (fastify) => {
         title: "GANADERIA AVANZADA API",
         version: "0.1.0",
       },
+      tags: [
+        { name: "System", description: "Health, readiness, metrics, and service info." },
+        { name: "Auth", description: "Authentication and token lifecycle." },
+        { name: "Animals", description: "Animal records and timelines." },
+        { name: "Events", description: "Animal event ingestion and listing." },
+        { name: "Costs", description: "Cost events and bulk ingestion." },
+        { name: "Dimensions", description: "Locations, groups, parties, and products." },
+        { name: "Analytics", description: "Derived metrics and dashboards." },
+        { name: "Exports", description: "Bulk JSON/CSV export endpoints." },
+        { name: "WebSocket", description: "Realtime WebSocket endpoint." },
+      ],
       servers: [{ url: "/" }],
       components: {
         securitySchemes: {

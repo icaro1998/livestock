@@ -30,11 +30,24 @@ export default fp(async (fastify) => {
     }
   });
 
-  fastify.get("/ws", { websocket: true }, (connection) => {
-    const socket = connection.socket as WebSocket & { on: (...args: any[]) => void };
-    clients.add(socket);
-    socket.on("close", () => clients.delete(socket));
-  });
+  fastify.get(
+    "/ws",
+    {
+      websocket: true,
+      schema: {
+        tags: ["WebSocket"],
+        summary: "WebSocket endpoint",
+        response: {
+          101: { description: "Switching Protocols" },
+        },
+      },
+    },
+    (connection) => {
+      const socket = connection.socket as WebSocket & { on: (...args: any[]) => void };
+      clients.add(socket);
+      socket.on("close", () => clients.delete(socket));
+    }
+  );
 
   fastify.addHook("onClose", async () => {
     for (const c of clients) c.close();

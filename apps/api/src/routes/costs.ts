@@ -3,36 +3,132 @@ import { bulkCostsSchema, costCreateSchema, exportCostsQuerySchema } from "@live
 import { bulkCreateCosts, createCost, exportCosts, listCosts } from "../services/costs";
 import { toCsv } from "../utils/csv";
 
+const cursorPageSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    data: { type: "array", items: { type: "object", additionalProperties: true } },
+    nextCursor: { type: ["string", "null"] },
+  },
+};
+
 export default async function costRoutes(fastify: FastifyInstance) {
-  fastify.post("/costs", { preHandler: fastify.authorize("manager") }, async (request, reply) => {
-    const body = costCreateSchema.parse(request.body);
-    const cost = await createCost(fastify, body, request.id);
-    reply.code(201).send(cost);
-  });
+  fastify.post(
+    "/costs",
+    {
+      preHandler: fastify.authorize("manager"),
+      schema: {
+        tags: ["Costs"],
+        summary: "Create cost",
+        body: {
+          type: "object",
+          additionalProperties: true,
+          required: ["cost_at", "scope", "category", "amount"],
+          properties: {
+            cost_at: { type: "string" },
+            scope: { type: "string" },
+            uid: { type: "string" },
+            group_code: { type: "string" },
+            location_code: { type: "string" },
+            category: { type: "string" },
+            product_code: { type: "string" },
+            party_code: { type: "string" },
+            amount: { type: "number" },
+            currency: { type: "string" },
+            quantity: { type: "number" },
+            unit: { type: "string" },
+            source_ref: { type: "string" },
+            batch_id: { type: "string" },
+            notes: { type: "string" },
+            payload: { type: "object", additionalProperties: true },
+          },
+        },
+        response: {
+          201: { type: "object", additionalProperties: true },
+        },
+      },
+    },
+    async (request, reply) => {
+      const body = costCreateSchema.parse(request.body);
+      const cost = await createCost(fastify, body, request.id);
+      reply.code(201).send(cost);
+    }
+  );
 
-  fastify.post("/costs/bulk", { preHandler: fastify.authorize("manager") }, async (request, reply) => {
-    const body = bulkCostsSchema.parse(request.body);
-    const created = await bulkCreateCosts(fastify, body.costs, request.id);
-    reply.code(201).send({ costs: created });
-  });
+  fastify.post(
+    "/costs/bulk",
+    {
+      preHandler: fastify.authorize("manager"),
+      schema: {
+        tags: ["Costs"],
+        summary: "Bulk create costs",
+        body: {
+          type: "object",
+          additionalProperties: true,
+          required: ["costs"],
+          properties: {
+            costs: { type: "array", items: { type: "object", additionalProperties: true } },
+          },
+        },
+        response: {
+          201: {
+            type: "object",
+            additionalProperties: false,
+            properties: { costs: { type: "array", items: { type: "object", additionalProperties: true } } },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const body = bulkCostsSchema.parse(request.body);
+      const created = await bulkCreateCosts(fastify, body.costs, request.id);
+      reply.code(201).send({ costs: created });
+    }
+  );
 
-  fastify.get("/costs", { preHandler: fastify.authorize("viewer") }, async (request, reply) => {
-    const query = (request.query as any) || {};
-    const page = await listCosts(fastify, query);
-    reply.send(page);
-  });
+  fastify.get(
+    "/costs",
+    {
+      preHandler: fastify.authorize("viewer"),
+      schema: {
+        tags: ["Costs"],
+        summary: "List costs",
+        querystring: {
+          type: "object",
+          additionalProperties: true,
+          properties: {
+            limit: { type: "integer", minimum: 1, maximum: 5000 },
+            cursor: { type: "string" },
+            scope: { type: "string" },
+            uid: { type: "string" },
+            category: { type: "string" },
+            batch_id: { type: "string" },
+            from: { type: "string" },
+            to: { type: "string" },
+          },
+        },
+        response: { 200: cursorPageSchema },
+      },
+    },
+    async (request, reply) => {
+      const query = (request.query as any) || {};
+      const page = await listCosts(fastify, query);
+      reply.send(page);
+    }
+  );
 
   fastify.get(
     "/export/costs",
     {
       preHandler: fastify.authorize("viewer"),
       schema: {
+        tags: ["Exports", "Costs"],
         summary: "Export costs",
         description: "Returns JSON by default or CSV when format=csv. Pagination via limit/cursor.",
         security: [{ bearerAuth: [] }],
         querystring: {
           type: "object",
-          additionalProperties: false,
+          additionalProperties: true,
           properties: {
             format: { type: "string", enum: ["json", "csv"] },
             limit: { type: "integer", minimum: 1, maximum: 5000 },

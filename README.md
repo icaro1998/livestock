@@ -117,6 +117,10 @@ See `.env.example`. Common ones:
 - Health endpoints: `/healthz`, `/readyz`, `/metrics`, `/info`
 - Export endpoints: `/export/animals`, `/export/events`, `/export/costs`, `/export/dimensions` (add `?format=csv` for CSV). Optional: `limit` (default 1000, max 5000), `cursor`. Events support `include_payload=true`. Dimensions support `table=location|herdGroup|party|product`.
 
+### Swagger auth (for protected endpoints)
+1. `POST /auth/login` with `admin@example.com` / `admin1234` (or your user).
+2. In `/docs`, click **Authorize** and paste `Bearer <accessToken>` (or just the token if the UI auto-adds `Bearer`).
+
 ## Auth and roles
 - JWT access + refresh tokens
 - Roles: `viewer` (read), `manager` (events + patch animals), `admin` (dimensions, users, animals)
