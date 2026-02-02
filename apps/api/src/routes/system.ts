@@ -64,12 +64,17 @@ export default async function systemRoutes(fastify: FastifyInstance) {
           200: {
             type: "object",
             additionalProperties: false,
-            required: ["uptime_sec", "rss", "heapUsed", "heapTotal"],
+            required: ["uptime_sec", "rss", "heapUsed", "heapTotal", "pid", "node_version", "db_ok", "redis_ok"],
             properties: {
               uptime_sec: { type: "number" },
               rss: { type: "number" },
               heapUsed: { type: "number" },
               heapTotal: { type: "number" },
+              pid: { type: "number" },
+              node_version: { type: "string" },
+              db_ok: { type: "boolean" },
+              redis_ok: { type: "boolean" },
+              timestamp: { type: "string" },
             },
           },
         },
@@ -77,11 +82,30 @@ export default async function systemRoutes(fastify: FastifyInstance) {
     },
     async () => {
       const mem = process.memoryUsage();
+      let db_ok = false;
+      let redis_ok = false;
+      try {
+        await fastify.prisma.$queryRaw`SELECT 1`;
+        db_ok = true;
+      } catch {
+        db_ok = false;
+      }
+      try {
+        await fastify.redis.ping();
+        redis_ok = true;
+      } catch {
+        redis_ok = false;
+      }
       return {
         uptime_sec: process.uptime(),
         rss: mem.rss,
         heapUsed: mem.heapUsed,
         heapTotal: mem.heapTotal,
+        pid: process.pid,
+        node_version: process.version,
+        db_ok,
+        redis_ok,
+        timestamp: new Date().toISOString(),
       };
     }
   );

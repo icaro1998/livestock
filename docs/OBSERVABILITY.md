@@ -7,6 +7,10 @@ This backend already exposes health and metrics endpoints and uses structured lo
 - Request IDs are attached to responses (see `apps/api/src/plugins/request-id.ts`).
 - Logs are written to stdout; container runtime should capture and forward them.
 
+Additional fields on response logs:
+- `route`, `method`, `statusCode`, `responseTimeMs`
+- `userId`, `role`, `email` when authenticated
+
 Recommended:
 - Centralize logs (e.g., Loki/ELK/Cloud logs).
 - Index `reqId`, `statusCode`, `route`, `userId` where applicable.
@@ -15,6 +19,11 @@ Recommended:
 - Metrics endpoint: `GET /metrics`.
 - Health endpoint: `GET /healthz`.
 - Readiness endpoint: `GET /readyz`.
+
+`/metrics` returns:
+- `uptime_sec`, `rss`, `heapUsed`, `heapTotal`
+- `pid`, `node_version`, `timestamp`
+- `db_ok`, `redis_ok` (connectivity checks)
 
 Recommended:
 - Configure Prometheus to scrape `/metrics`.
@@ -28,6 +37,7 @@ Recommended:
 - API unavailable (healthz fails)
 - DB unreachable
 - Redis unreachable
+ - db_ok/redis_ok are false for > N minutes
 
 ## 4) Suggested monitoring stack
 - Prometheus (metrics scrape)
@@ -38,4 +48,3 @@ Recommended:
 - Add tracing (OpenTelemetry) for cross-service traces
 - Add per-route latency metrics
 - Add business metrics (events ingested/hour, animals created/day)
-
