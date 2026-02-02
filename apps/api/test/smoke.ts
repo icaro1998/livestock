@@ -79,6 +79,15 @@ const main = async () => {
   if (!eventsCsv.startsWith("event_id,")) throw new Error("Events export CSV invalid");
   if (!eventsCsv.split("\n")[0].includes(",payload")) throw new Error("Events export payload column missing");
 
+  const costsExport = await get("/export/costs?limit=1", token);
+  if (!costsExport.data || !Array.isArray(costsExport.data)) throw new Error("Costs export JSON invalid");
+
+  const costsCsv = await getText("/export/costs?format=csv&limit=1", token);
+  if (!costsCsv.startsWith("cost_id,")) throw new Error("Costs export CSV invalid");
+
+  const dimsExport = await get("/export/dimensions", token);
+  if (!dimsExport.data || !Array.isArray(dimsExport.data)) throw new Error("Dimensions export JSON invalid");
+
   console.log("smoke PASS");
 };
 

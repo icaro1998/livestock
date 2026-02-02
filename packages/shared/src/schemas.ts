@@ -184,3 +184,18 @@ export const exportEventsQuerySchema = eventsQuerySchema.extend({
   format: z.enum(["json", "csv"]).optional(),
   include_payload: z.coerce.boolean().optional(),
 });
+
+export const exportCostsQuerySchema = paginationSchema.extend({
+  format: z.enum(["json", "csv"]).optional(),
+  scope: z.string().optional(),
+  uid: z.string().optional(),
+  category: z.string().optional(),
+  batch_id: z.string().optional(),
+  from: dateLike.optional(),
+  to: dateLike.optional(),
+});
+
+export const exportDimensionsQuerySchema = z.object({
+  format: z.enum(["json", "csv"]).optional(),
+  table: z.enum(["location", "herdGroup", "party", "product"]).optional(),
+});
