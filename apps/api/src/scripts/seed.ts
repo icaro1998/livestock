@@ -10,6 +10,8 @@ const bool = (val: string | undefined, def = false) => {
   return ["1", "true", "yes", "on"].includes(val.toLowerCase());
 };
 
+const strict = bool(process.env.SEED_STRICT, false);
+
 const normalizeHeader = (value: string) =>
   value.replace(/^\uFEFF/, "").trim().toLowerCase().replace(/\s+/g, "_");
 
@@ -23,8 +25,55 @@ const normalizeSex = (value: unknown) => {
   const str = normalizeValue(value);
   if (!str) return null;
   const normalized = str.toUpperCase();
-  if (normalized === "M" || normalized === "F") return normalized;
+  if (["M", "MALE", "MACHO"].includes(normalized)) return "M";
+  if (["F", "FEMALE", "HEMBRA"].includes(normalized)) return "F";
   return null;
+};
+
+const parseBoolean = (value: unknown, lineNo: number, field: string, errors: string[]) => {
+  const str = normalizeValue(value);
+  if (!str) return null;
+  const normalized = str.toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  errors.push(`row ${lineNo}: invalid boolean "${value}" for ${field}`);
+  return null;
+};
+
+const parseIntField = (
+  value: unknown,
+  lineNo: number,
+  field: string,
+  errors: string[],
+  opts: { min?: number; max?: number } = {}
+) => {
+  const str = normalizeValue(value);
+  if (!str) return null;
+  const num = Number(str);
+  if (!Number.isInteger(num)) {
+    errors.push(`row ${lineNo}: invalid integer "${value}" for ${field}`);
+    return null;
+  }
+  if (opts.min !== undefined && num < opts.min) {
+    errors.push(`row ${lineNo}: ${field} must be >= ${opts.min}`);
+    return null;
+  }
+  if (opts.max !== undefined && num > opts.max) {
+    errors.push(`row ${lineNo}: ${field} must be <= ${opts.max}`);
+    return null;
+  }
+  return num;
+};
+
+const parseDateField = (value: unknown, lineNo: number, field: string, errors: string[]) => {
+  const str = normalizeValue(value);
+  if (!str) return null;
+  const parsed = new Date(str);
+  if (Number.isNaN(parsed.getTime())) {
+    errors.push(`row ${lineNo}: invalid date "${value}" for ${field}`);
+    return null;
+  }
+  return parsed;
 };
 
 const seedUsers = async () => {
@@ -47,25 +96,60 @@ const seedAnimals = async () => {
     return;
   }
   const content = fs.readFileSync(csvPath, "utf-8");
+  let headerList: string[] = [];
   const records = parse(content, {
-    columns: (headers: string[]) => headers.map(normalizeHeader),
+    columns: (headers: string[]) => {
+      const normalized = headers.map(normalizeHeader);
+      headerList = normalized;
+      return normalized;
+    },
     skip_empty_lines: true,
     trim: true,
   });
+  const headerSet = new Set(headerList);
+  const hasColumn = (name: string) => headerSet.has(name);
+  const knownColumns = new Set([
+    "uid",
+    "eid",
+    "vid",
+    "registration_at",
+    "alert",
+    "race",
+    "sex",
+    "color",
+    "mother_name",
+    "father_name",
+    "brand_mark",
+    "brand",
+    "birth_year",
+    "birth_month",
+    "birth_place",
+    "diagnostic",
+    "warning",
+    "notes",
+  ]);
 
   const seen = new Set<string>();
+  const seenEid = new Set<string>();
+  const seenVid = new Set<string>();
   const errors: string[] = [];
   const warnings: string[] = [];
   let processed = 0;
   let skipped = 0;
 
+  const unknownColumns = headerList.filter((col) => !knownColumns.has(col));
+  if (unknownColumns.length) {
+    warnings.push(`unknown columns: ${unknownColumns.join(", ")}`);
+  }
+
   for (let index = 0; index < records.length; index++) {
     const row = records[index];
     const lineNo = index + 2;
+    const rowErrors: string[] = [];
     const uid = normalizeValue(row.uid);
 
     if (!uid) {
-      errors.push(`row ${lineNo}: missing uid`);
+      rowErrors.push(`row ${lineNo}: missing uid`);
       skipped++;
       continue;
     }
@@ -77,28 +161,84 @@ const seedAnimals = async () => {
     }
     seen.add(uid);
 
+    const eid = normalizeValue(row.eid);
+    if (eid) {
+      if (seenEid.has(eid)) {
+        warnings.push(`row ${lineNo}: duplicate eid ${eid}`);
+      } else {
+        seenEid.add(eid);
+      }
+    }
+
+    const vid = normalizeValue(row.vid);
+    if (vid) {
+      if (seenVid.has(vid)) {
+        warnings.push(`row ${lineNo}: duplicate vid ${vid}`);
+      } else {
+        seenVid.add(vid);
+      }
+    }
+
     const sex = normalizeSex(row.sex);
     if (row.sex && !sex) {
-      warnings.push(`row ${lineNo}: invalid sex "${row.sex}" (set to null)`);
+      rowErrors.push(`row ${lineNo}: invalid sex "${row.sex}"`);
     }
+
+    const registrationAt = hasColumn("registration_at")
+      ? parseDateField(row.registration_at, lineNo, "registration_at", rowErrors)
+      : null;
+    const alert = hasColumn("alert") ? parseBoolean(row.alert, lineNo, "alert", rowErrors) : null;
+    const birthYear = hasColumn("birth_year")
+      ? parseIntField(row.birth_year, lineNo, "birth_year", rowErrors, { min: 1900, max: 2100 })
+      : null;
+    const birthMonth = hasColumn("birth_month")
+      ? parseIntField(row.birth_month, lineNo, "birth_month", rowErrors, { min: 1, max: 12 })
+      : null;
+
+    if (rowErrors.length) {
+      errors.push(...rowErrors);
+      skipped++;
+      continue;
+    }
+
+    const brandMark =
+      (hasColumn("brand_mark") && normalizeValue(row.brand_mark)) ||
+      (hasColumn("brand") && normalizeValue(row.brand)) ||
+      null;
+
+    const update: Record<string, unknown> = {};
+    const create: Record<string, unknown> = { uid };
+    const assign = (key: string, value: unknown) => {
+      update[key] = value;
+      create[key] = value;
+    };
+    const assignIfPresent = (key: string, value: unknown) => {
+      if (hasColumn(key)) assign(key, value);
+    };
+
+    assignIfPresent("eid", eid);
+    assignIfPresent("vid", vid);
+    assignIfPresent("registration_at", registrationAt);
+    assignIfPresent("alert", alert);
+    assignIfPresent("race", normalizeValue(row.race));
+    assignIfPresent("sex", sex);
+    assignIfPresent("color", normalizeValue(row.color));
+    assignIfPresent("mother_name", normalizeValue(row.mother_name));
+    assignIfPresent("father_name", normalizeValue(row.father_name));
+    if (hasColumn("brand_mark") || hasColumn("brand")) {
+      assign("brand_mark", brandMark);
+    }
+    assignIfPresent("birth_year", birthYear);
+    assignIfPresent("birth_month", birthMonth);
+    assignIfPresent("birth_place", normalizeValue(row.birth_place));
+    assignIfPresent("diagnostic", normalizeValue(row.diagnostic));
+    assignIfPresent("warning", normalizeValue(row.warning));
+    assignIfPresent("notes", normalizeValue(row.notes));
 
     await prisma.animal.upsert({
       where: { uid },
-      update: {
-        eid: normalizeValue(row.eid),
-        vid: normalizeValue(row.vid),
-        sex,
-        race: normalizeValue(row.race),
-        brand_mark: normalizeValue(row.brand_mark) || normalizeValue(row.brand),
-      },
-      create: {
-        uid,
-        eid: normalizeValue(row.eid),
-        vid: normalizeValue(row.vid),
-        sex,
-        race: normalizeValue(row.race),
-        brand_mark: normalizeValue(row.brand_mark) || normalizeValue(row.brand),
-      },
+      update,
+      create,
     });
     processed++;
   }
@@ -109,7 +249,7 @@ const seedAnimals = async () => {
   }
   if (errors.length) {
     console.error(`Seed errors (showing up to 5):\n- ${errors.slice(0, 5).join("\n- ")}`);
-    if (bool(process.env.SEED_STRICT, false)) {
+    if (strict) {
       throw new Error(`Seed failed with ${errors.length} error(s).`);
     }
   }
