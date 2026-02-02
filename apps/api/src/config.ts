@@ -28,6 +28,11 @@ const requireEnv = (key: string) => {
   return value;
 };
 
+const isWeakSecret = (value: string, defaults: string[]) => {
+  if (defaults.includes(value)) return true;
+  return value.length < 32;
+};
+
 if (isProduction) {
   const errors: string[] = [];
   const required = ["DATABASE_URL", "REDIS_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "CORS_ORIGIN"];
@@ -35,6 +40,16 @@ if (isProduction) {
     if (!requireEnv(key)) {
       errors.push(`Missing ${key}`);
     }
+  }
+
+  const accessSecret = requireEnv("JWT_ACCESS_SECRET");
+  if (accessSecret && isWeakSecret(accessSecret, ["devaccesssecret", "CHANGE_ME_ACCESS_SECRET"])) {
+    errors.push("JWT_ACCESS_SECRET must be at least 32 chars and not a placeholder");
+  }
+
+  const refreshSecret = requireEnv("JWT_REFRESH_SECRET");
+  if (refreshSecret && isWeakSecret(refreshSecret, ["devrefreshsecret", "CHANGE_ME_REFRESH_SECRET"])) {
+    errors.push("JWT_REFRESH_SECRET must be at least 32 chars and not a placeholder");
   }
 
   if (process.env.CORS_ORIGIN === "*") {
