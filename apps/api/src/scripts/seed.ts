@@ -11,6 +11,7 @@ const bool = (val: string | undefined, def = false) => {
 };
 
 const strict = bool(process.env.SEED_STRICT, false);
+const dryRun = bool(process.env.SEED_DRY_RUN, false);
 
 const normalizeHeader = (value: string) =>
   value.replace(/^\uFEFF/, "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -77,6 +78,10 @@ const parseDateField = (value: unknown, lineNo: number, field: string, errors: s
 };
 
 const seedUsers = async () => {
+  if (dryRun) {
+    console.log("Dry run: skipping user seed.");
+    return;
+  }
   const count = await prisma.user.count();
   if (count === 0) {
     const password = await bcrypt.hash("admin1234", 10);
@@ -235,15 +240,21 @@ const seedAnimals = async () => {
     assignIfPresent("warning", normalizeValue(row.warning));
     assignIfPresent("notes", normalizeValue(row.notes));
 
-    await prisma.animal.upsert({
-      where: { uid },
-      update,
-      create,
-    });
+    if (!dryRun) {
+      await prisma.animal.upsert({
+        where: { uid },
+        update,
+        create,
+      });
+    }
     processed++;
   }
 
-  console.log(`Seeded ${processed} animals (${skipped} skipped)`);
+  if (dryRun) {
+    console.log(`Dry run: validated ${processed} animals (${skipped} skipped). No DB writes.`);
+  } else {
+    console.log(`Seeded ${processed} animals (${skipped} skipped)`);
+  }
   if (warnings.length) {
     console.warn(`Seed warnings (showing up to 5):\n- ${warnings.slice(0, 5).join("\n- ")}`);
   }
