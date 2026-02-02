@@ -7,8 +7,54 @@ on:
   pull_request:
 
 jobs:
-  build-test-smoke:
+  lint:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm install
+      - name: Lint
+        run: npm run lint --workspaces
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm install
+      - name: Build (type-check)
+        run: npm run build --workspaces
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm install
+      - name: Test
+        run: npm test --workspaces
+
+  integration-smoke:
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, unit-tests]
 
     services:
       postgres:
@@ -49,38 +95,29 @@ jobs:
       RATE_LIMIT_MAX: 1000
       RATE_LIMIT_WINDOW: 1 minute
       CORS_ORIGIN: "*"
+      API_BASE_URL: http://localhost:3000
+      API_ADMIN_EMAIL: admin@example.com
+      API_ADMIN_PASSWORD: admin1234
+      API_HEALTH_TIMEOUT_MS: 3000
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
       - name: Install deps
         run: npm install
-
       - name: Generate Prisma client
         run: npm run generate --workspace @livestock/db
-
       - name: Build workspaces
-        run: npm run build -ws
-
-      - name: Lint
-        run: npm run lint -ws
-
-      - name: Test
-        run: npm test -ws
-
+        run: npm run build --workspaces
       - name: Migrate DB
         run: npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
-
       - name: Seed DB
         run: npm run seed --workspace @livestock/api
-
       - name: Start API
         run: |
           node apps/api/dist/index.js &
@@ -91,10 +128,10 @@ jobs:
           done
           echo "API did not become healthy" >&2
           exit 1
-
+      - name: Integration tests
+        run: npm test --workspaces
       - name: Smoke
         run: npm run smoke --workspace @livestock/api
-
       - name: Stop API
         if: always()
         run: |

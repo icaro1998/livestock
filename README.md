@@ -149,6 +149,8 @@ See `.env.example`. Common ones:
 
 ## CI and Ops
 - GitHub Actions CI: `.github/workflows/ci.yml`
+- Best practices and gates: `docs/CI_CD_BEST_PRACTICES.md`
+- Unified policy file: `scientific.codex.json`
 - Production guidance: `docs/PRODUCTION.md`
 - Observability guidance: `docs/OBSERVABILITY.md`
 
