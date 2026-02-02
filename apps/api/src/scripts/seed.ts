@@ -137,6 +137,8 @@ const seedAnimals = async () => {
   const seen = new Set<string>();
   const seenEid = new Set<string>();
   const seenVid = new Set<string>();
+  const existingEid = new Map<string, Set<string>>();
+  const existingVid = new Map<string, Set<string>>();
   const errors: string[] = [];
   const warnings: string[] = [];
   let processed = 0;
@@ -149,6 +151,42 @@ const seedAnimals = async () => {
       errors.push(message);
     } else {
       warnings.push(message);
+    }
+  }
+
+  if (hasColumn("eid") || hasColumn("vid")) {
+    const eids = new Set<string>();
+    const vids = new Set<string>();
+    for (const row of records) {
+      if (hasColumn("eid")) {
+        const eid = normalizeValue(row.eid);
+        if (eid) eids.add(eid);
+      }
+      if (hasColumn("vid")) {
+        const vid = normalizeValue(row.vid);
+        if (vid) vids.add(vid);
+      }
+    }
+    const or: Array<Record<string, unknown>> = [];
+    if (eids.size) or.push({ eid: { in: Array.from(eids) } });
+    if (vids.size) or.push({ vid: { in: Array.from(vids) } });
+    if (or.length) {
+      const existing = await prisma.animal.findMany({
+        where: { OR: or },
+        select: { uid: true, eid: true, vid: true },
+      });
+      for (const row of existing) {
+        if (row.eid) {
+          const set = existingEid.get(row.eid) ?? new Set<string>();
+          set.add(row.uid);
+          existingEid.set(row.eid, set);
+        }
+        if (row.vid) {
+          const set = existingVid.get(row.vid) ?? new Set<string>();
+          set.add(row.uid);
+          existingVid.set(row.vid, set);
+        }
+      }
     }
   }
 
@@ -190,6 +228,16 @@ const seedAnimals = async () => {
       } else {
         seenEid.add(eid);
       }
+      const existingUids = existingEid.get(eid);
+      if (existingUids && (existingUids.size > 1 || !existingUids.has(uid))) {
+        const message = `row ${lineNo}: eid ${eid} already exists for uid ${Array.from(existingUids).join(", ")}`;
+        if (strict) {
+          errors.push(message);
+          shouldSkip = true;
+        } else {
+          warnings.push(message);
+        }
+      }
     }
 
     const vid = normalizeValue(row.vid);
@@ -204,6 +252,16 @@ const seedAnimals = async () => {
         }
       } else {
         seenVid.add(vid);
+      }
+      const existingUids = existingVid.get(vid);
+      if (existingUids && (existingUids.size > 1 || !existingUids.has(uid))) {
+        const message = `row ${lineNo}: vid ${vid} already exists for uid ${Array.from(existingUids).join(", ")}`;
+        if (strict) {
+          errors.push(message);
+          shouldSkip = true;
+        } else {
+          warnings.push(message);
+        }
       }
     }
     if (shouldSkip) {
