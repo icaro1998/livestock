@@ -39,6 +39,8 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_ACCESS_SECRET: devaccesssecret
       JWT_REFRESH_SECRET: devrefreshsecret
+      AUTO_MIGRATE: "true"
+      AUTO_SEED: "true"
     depends_on:
       postgres:
         condition: service_healthy

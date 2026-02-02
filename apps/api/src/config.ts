@@ -30,5 +30,6 @@ export const config = {
     timeWindow: process.env.RATE_LIMIT_WINDOW || "1 minute",
   },
   corsOrigin: process.env.CORS_ORIGIN || "*",
-  animalsCsvPath: process.env.ANIMALS_CSV_PATH || "./data/ANIMAL_REG - data.csv",
+  animalsCsvPath:
+    process.env.ANIMALS_CSV_PATH || path.resolve(__dirname, "../../../data/ANIMAL_REG - data.csv"),
 };

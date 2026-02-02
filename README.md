@@ -37,6 +37,7 @@ npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
 ```powershell
 npm run seed --workspace @livestock/api
 ```
+Note: the Docker API can also auto-run migrations and seed on startup if `AUTO_MIGRATE=true` and `AUTO_SEED=true` (see `.env.example`).
 5) Health check:
 ```powershell
 (iwr http://localhost:3000/healthz -UseBasicParsing).Content
