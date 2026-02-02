@@ -21,6 +21,12 @@ const get = async (url: string, token?: string) => {
   return res.json();
 };
 
+const getText = async (url: string, token?: string) => {
+  const res = await fetch(base + url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new Error(`${url} failed ${res.status}`);
+  return res.text();
+};
+
 const main = async () => {
   const health = await get("/healthz");
   console.log("healthz", health);
@@ -58,6 +64,19 @@ const main = async () => {
 
   const events = await get(`/events?uid=${uid}`, token);
   if (!events.data || events.data.length === 0) throw new Error("No events returned");
+
+  const animalsExport = await get("/export/animals", token);
+  if (!Array.isArray(animalsExport)) throw new Error("Animals export JSON invalid");
+
+  const animalsCsv = await getText("/export/animals?format=csv", token);
+  if (!animalsCsv.startsWith("uid,")) throw new Error("Animals export CSV invalid");
+
+  const eventsExport = await get("/export/events", token);
+  if (!Array.isArray(eventsExport)) throw new Error("Events export JSON invalid");
+
+  const eventsCsv = await getText("/export/events?format=csv", token);
+  if (!eventsCsv.startsWith("event_id,")) throw new Error("Events export CSV invalid");
+
   console.log("smoke PASS");
 };
 
