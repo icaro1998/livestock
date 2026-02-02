@@ -20,6 +20,7 @@ Recommended:
 - `BOOTSTRAP_ADMIN=false`
 - `CORS_ORIGIN` set to your frontend domain(s)
 - `RATE_LIMIT_*` tuned for production traffic
+- `AUTO_MIGRATE=false` and `AUTO_SEED=false` (run migrations manually)
 
 ## 3) Secrets storage strategy
 Choose one:
@@ -42,6 +43,8 @@ Choose one:
   ```
   npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
   ```
+- Validate backups with periodic restore tests.
+- Use `npm run db:backup` / `npm run db:restore -- --file=...` (workspace @livestock/db) for manual ops.
 
 ## 6) Redis
 - Use a dedicated Redis instance for production.
@@ -51,6 +54,21 @@ Choose one:
 - [ ] `NODE_ENV=production`
 - [ ] Secrets are injected from a secure source
 - [ ] DB migrations applied
+- [ ] `AUTO_SEED` and `BOOTSTRAP_ADMIN` disabled
+- [ ] Admin user created via CLI if needed:
+  ```
+  npm run admin --workspace @livestock/api -- --create --email=... --generate-password --role=admin
+  ```
 - [ ] Health endpoint `/healthz` returns OK
 - [ ] Smoke test passes against production URL
 
+## 8) TLS and ingress
+- Terminate TLS at your load balancer / ingress and forward to the API.
+- Set `CORS_ORIGIN` to only the allowed frontend origins.
+
+## 9) Incident response basics
+- If a JWT secret is rotated, revoke refresh tokens:
+  ```
+  npm run admin --workspace @livestock/api -- --revoke-tokens --email=...
+  ```
+- Keep a short runbook with rollback steps and a known-good image tag.
