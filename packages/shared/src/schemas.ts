@@ -175,3 +175,12 @@ export const eventsQuerySchema = paginationSchema.extend({
   group_code: z.string().optional(),
   batch_id: z.string().optional(),
 });
+
+export const exportAnimalsQuerySchema = animalsQuerySchema.extend({
+  format: z.enum(["json", "csv"]).optional(),
+});
+
+export const exportEventsQuerySchema = eventsQuerySchema.extend({
+  format: z.enum(["json", "csv"]).optional(),
+  include_payload: z.coerce.boolean().optional(),
+});

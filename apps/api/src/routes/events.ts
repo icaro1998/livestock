@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { eventCreateSchema, bulkEventsSchema, eventsQuerySchema, IDEMPOTENCY_KEY_HEADER } from "@livestock/shared";
+import { eventCreateSchema, bulkEventsSchema, eventsQuerySchema, exportEventsQuerySchema, IDEMPOTENCY_KEY_HEADER } from "@livestock/shared";
 import { createEvent, bulkCreateEvents, exportEvents, listEvents } from "../services/events";
 import { safeJsonStringify, toCsv } from "../utils/csv";
 
@@ -31,10 +31,11 @@ export default async function eventRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get("/export/events", { preHandler: fastify.authorize("viewer") }, async (request, reply) => {
-    const query = request.query as any;
+    const query = exportEventsQuerySchema.partial().parse(request.query);
     const rows = await exportEvents(fastify, query);
     const format = (query.format || "json").toString().toLowerCase();
     const includePayload = query.include_payload === "true" || query.include_payload === true;
+    const nextCursor = rows.length > 0 ? String(rows[rows.length - 1].event_id) : undefined;
 
     if (format === "csv") {
       const columns = [
@@ -65,10 +66,11 @@ export default async function eventRoutes(fastify: FastifyInstance) {
       reply
         .header("content-type", "text/csv; charset=utf-8")
         .header("content-disposition", "attachment; filename=events.csv")
+        .header("x-next-cursor", nextCursor ?? "")
         .send(csv);
       return;
     }
 
-    reply.send(rows);
+    reply.send({ data: rows, nextCursor });
   });
 }

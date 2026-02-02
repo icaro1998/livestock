@@ -3,6 +3,7 @@ import {
   animalCreateSchema,
   animalPatchSchema,
   animalsQuerySchema,
+  exportAnimalsQuerySchema,
   WS_TOPICS,
 } from "@livestock/shared";
 import { ApiError } from "../utils/errors";
@@ -49,9 +50,11 @@ export default async function animalRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get("/export/animals", { preHandler: fastify.authorize("viewer") }, async (request, reply) => {
-    const query = request.query as any;
+    const query = exportAnimalsQuerySchema.partial().parse(request.query);
     const rows = await exportAnimals(fastify, query);
     const format = (query.format || "json").toString().toLowerCase();
+
+    const nextCursor = rows.length > 0 ? rows[rows.length - 1].uid : undefined;
 
     if (format === "csv") {
       const columns = [
@@ -86,10 +89,11 @@ export default async function animalRoutes(fastify: FastifyInstance) {
       reply
         .header("content-type", "text/csv; charset=utf-8")
         .header("content-disposition", "attachment; filename=animals.csv")
+        .header("x-next-cursor", nextCursor ?? "")
         .send(csv);
       return;
     }
 
-    reply.send(rows);
+    reply.send({ data: rows, nextCursor });
   });
 }

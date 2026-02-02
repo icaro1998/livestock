@@ -66,14 +66,14 @@ const main = async () => {
   if (!events.data || events.data.length === 0) throw new Error("No events returned");
 
   const animalsExport = await get("/export/animals?limit=1", token);
-  if (!Array.isArray(animalsExport)) throw new Error("Animals export JSON invalid");
-  if (animalsExport.length > 1) throw new Error("Animals export limit not enforced");
+  if (!animalsExport.data || !Array.isArray(animalsExport.data)) throw new Error("Animals export JSON invalid");
+  if (animalsExport.data.length > 1) throw new Error("Animals export limit not enforced");
 
   const animalsCsv = await getText("/export/animals?format=csv", token);
   if (!animalsCsv.startsWith("uid,")) throw new Error("Animals export CSV invalid");
 
-  const eventsExport = await get("/export/events", token);
-  if (!Array.isArray(eventsExport)) throw new Error("Events export JSON invalid");
+  const eventsExport = await get("/export/events?limit=1", token);
+  if (!eventsExport.data || !Array.isArray(eventsExport.data)) throw new Error("Events export JSON invalid");
 
   const eventsCsv = await getText("/export/events?format=csv&include_payload=true&limit=1", token);
   if (!eventsCsv.startsWith("event_id,")) throw new Error("Events export CSV invalid");
