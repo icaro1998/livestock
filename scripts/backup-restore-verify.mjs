@@ -8,6 +8,27 @@ const fileArg = args.find((a) => a.startsWith("--file="));
 const restoreArg = args.find((a) => a.startsWith("--restore-url="));
 const dbUrl = process.env.DATABASE_URL;
 const restoreUrl = restoreArg ? restoreArg.split("=")[1] : process.env.RESTORE_DATABASE_URL;
+const isWindows = process.platform === "win32";
+const nullDevice = isWindows ? "NUL" : "/dev/null";
+
+const commandExists = (cmd) => {
+  try {
+    execSync(isWindows ? `where ${cmd}` : `command -v ${cmd}`, { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const parseUrl = (url) => {
+  const parsed = new URL(url);
+  return {
+    user: decodeURIComponent(parsed.username || ""),
+    password: decodeURIComponent(parsed.password || ""),
+    host: parsed.hostname,
+    db: parsed.pathname.replace(/^\//, ""),
+  };
+};
 
 if (!dbUrl) {
   console.error("DATABASE_URL missing");
@@ -24,14 +45,73 @@ const run = (cmd) => {
   execSync(cmd, { stdio: "inherit" });
 };
 
-run(`pg_dump -Fc -f "${target}" "${dbUrl}"`);
+const pgDumpAvailable = commandExists("pg_dump");
+const pgRestoreAvailable = commandExists("pg_restore");
+
+const repoRoot = process.cwd();
+const composeFile = path.resolve(repoRoot, "infra", "docker-compose.yml");
+const detectContainer = () => {
+  if (process.env.POSTGRES_CONTAINER) return process.env.POSTGRES_CONTAINER;
+  try {
+    const out = execSync(`docker compose -f "${composeFile}" ps -q postgres`, {
+      stdio: "pipe",
+    })
+      .toString()
+      .trim();
+    if (out) return out;
+  } catch {}
+  try {
+    const out = execSync(`docker ps --filter "name=infra-postgres-1" --format "{{.ID}}"`, {
+      stdio: "pipe",
+    })
+      .toString()
+      .trim();
+    if (out) return out;
+  } catch {}
+  return null;
+};
+
+const runPgDump = () => {
+  if (pgDumpAvailable) {
+    run(`pg_dump -Fc -f "${target}" "${dbUrl}"`);
+    return { method: "host" };
+  }
+
+  const container = detectContainer();
+  if (!container) {
+    throw new Error(
+      "pg_dump not found and no postgres container detected. Install PostgreSQL client tools or start docker compose."
+    );
+  }
+  const { user, password, db } = parseUrl(dbUrl);
+  if (!user || !db) {
+    throw new Error("DATABASE_URL must include username and database name for docker fallback.");
+  }
+  const passwordArg = password ? `-e PGPASSWORD="${password}" ` : "";
+  run(`docker exec ${passwordArg}-T ${container} pg_dump -Fc -U ${user} -d ${db} > "${target}"`);
+  return { method: "docker", container };
+};
+
+const runPgRestoreList = (methodInfo) => {
+  if (pgRestoreAvailable) {
+    run(`pg_restore --list "${target}" > ${nullDevice}`);
+    return;
+  }
+  if (methodInfo.method === "docker") {
+    run(`docker exec -i ${methodInfo.container} pg_restore --list < "${target}" > ${nullDevice}`);
+    return;
+  }
+  console.warn("pg_restore not found; skipping dump list verification.");
+};
+
+const methodInfo = runPgDump();
 
 if (!existsSync(target) || statSync(target).size === 0) {
   console.error("Backup file missing or empty.");
   process.exit(1);
 }
 
-run(`pg_restore --list "${target}" > ${process.platform === "win32" ? "NUL" : "/dev/null"}`);
+runPgRestoreList(methodInfo);
 console.log(`Backup verified at ${target}`);
 
 if (!restoreUrl) {
@@ -40,5 +120,16 @@ if (!restoreUrl) {
 }
 
 console.warn("Restoring into RESTORE_DATABASE_URL (this overwrites target DB).\n");
-run(`pg_restore --clean --if-exists -d "${restoreUrl}" "${target}"`);
+if (pgRestoreAvailable) {
+  run(`pg_restore --clean --if-exists -d "${restoreUrl}" "${target}"`);
+} else if (methodInfo.method === "docker") {
+  const { user, password, db } = parseUrl(restoreUrl);
+  if (!user || !db) {
+    throw new Error("RESTORE_DATABASE_URL must include username and database name for docker restore.");
+  }
+  const passwordArg = password ? `-e PGPASSWORD="${password}" ` : "";
+  run(`docker exec ${passwordArg}-i ${methodInfo.container} pg_restore --clean --if-exists -U ${user} -d ${db} < "${target}"`);
+} else {
+  throw new Error("pg_restore not found. Install PostgreSQL client tools to restore.");
+}
 console.log("Restore completed.");
