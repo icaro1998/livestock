@@ -39,6 +39,15 @@ Recommended:
 - Redis unreachable
  - db_ok/redis_ok are false for > N minutes
 
+Quick local checks:
+```powershell
+.\scripts\health-check.ps1
+```
+
+```bash
+./scripts/health-check.sh
+```
+
 ## 4) Suggested monitoring stack
 - Prometheus (metrics scrape)
 - Grafana (dashboards + alerts)
