@@ -16,4 +16,5 @@ dist
 .prisma
 *.sqlite
 *.log
+*.tsbuildinfo
 /apps/api/openapi.json
