@@ -13,6 +13,12 @@ const bool = (val: string | undefined, def = false) => {
   return ["1", "true", "yes", "on"].includes(val.toLowerCase());
 };
 
+const repoRoot = path.resolve(__dirname, "../../../");
+const resolveRepoPath = (value: string | undefined, fallback: string) => {
+  if (!value) return path.join(repoRoot, fallback);
+  return path.isAbsolute(value) ? value : path.join(repoRoot, value);
+};
+
 const env = process.env.NODE_ENV || "development";
 const isProduction = env === "production";
 
@@ -76,6 +82,5 @@ export const config = {
     timeWindow: process.env.RATE_LIMIT_WINDOW || "1 minute",
   },
   corsOrigin: process.env.CORS_ORIGIN || "*",
-  animalsCsvPath:
-    process.env.ANIMALS_CSV_PATH || path.resolve(__dirname, "../../../data/ANIMAL_REG - data.csv"),
+  animalsCsvPath: resolveRepoPath(process.env.ANIMALS_CSV_PATH, "data/ANIMAL_REG - data.csv"),
 };

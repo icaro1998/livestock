@@ -39,7 +39,11 @@ const seedUsers = async () => {
 const seedAnimals = async () => {
   const csvPath = path.resolve(config.animalsCsvPath);
   if (!fs.existsSync(csvPath)) {
-    console.warn(`Seed CSV not found at ${csvPath}, skipping animals.`);
+    const message = `Seed CSV not found at ${csvPath}`;
+    if (bool(process.env.SEED_STRICT, false)) {
+      throw new Error(message);
+    }
+    console.warn(`${message}, skipping animals.`);
     return;
   }
   const content = fs.readFileSync(csvPath, "utf-8");
