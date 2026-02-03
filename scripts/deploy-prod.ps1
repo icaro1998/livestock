@@ -13,12 +13,12 @@ $ErrorActionPreference = "Stop"
 
 function Invoke-Checked {
   param(
-    [string]$Exe,
-    [string[]]$Args
+    [string]$Command,
+    [string[]]$CommandArgs
   )
-  & $Exe @Args
+  & $Command @CommandArgs
   if ($LASTEXITCODE -ne 0) {
-    throw "$Exe $($Args -join ' ') failed with exit code $LASTEXITCODE"
+    throw "$Command $($CommandArgs -join ' ') failed with exit code $LASTEXITCODE"
   }
 }
 
@@ -35,12 +35,12 @@ if (-not $SkipValidate) {
   $env:NODE_ENV = "production"
   $env:ALLOW_DOTENV = "true"
   $env:DOTENV_PATH = $EnvFile
-  Invoke-Checked "npm" @("run", "prod:validate")
+  Invoke-Checked -Command "npm" -CommandArgs @("run", "prod:validate")
   Remove-Item Env:NODE_ENV, Env:ALLOW_DOTENV, Env:DOTENV_PATH -ErrorAction SilentlyContinue
 }
 
 if (-not $SkipBuild) {
-  Invoke-Checked "docker" @("build", "-f", "apps/api/Dockerfile", "-t", "livestock-api:latest", ".")
+  Invoke-Checked -Command "docker" -CommandArgs @("build", "-f", "apps/api/Dockerfile", "-t", "livestock-api:latest", ".")
 }
 
 # Start DB/Redis first when present in the compose file
@@ -51,18 +51,18 @@ if ($services -and ($services -contains "postgres" -or $services -contains "redi
   if ($services -contains "redis") { $deps += "redis" }
   if ($deps.Count -gt 0) {
     $depArgs = @("compose", "-f", $ComposeFile, "up", "-d") + $deps
-    Invoke-Checked "docker" $depArgs
+    Invoke-Checked -Command "docker" -CommandArgs $depArgs
   }
 }
 
 if (-not $SkipMigrate) {
-  Invoke-Checked "docker" @(
+  Invoke-Checked -Command "docker" -CommandArgs @(
     "compose", "-f", $ComposeFile, "run", "--rm", "api",
     "npx", "prisma", "migrate", "deploy", "--schema", "packages/db/prisma/schema.prisma"
   )
 }
 
-Invoke-Checked "docker" @("compose", "-f", $ComposeFile, "up", "-d", "api")
+Invoke-Checked -Command "docker" -CommandArgs @("compose", "-f", $ComposeFile, "up", "-d", "api")
 
 if (-not $SkipHealth) {
   & "$repoRoot/scripts/health-check.ps1" -BaseUrl $BaseUrl -MaxAttempts 30 -DelaySeconds 1
@@ -76,7 +76,7 @@ if ($Smoke) {
     Write-Warning "Smoke skipped: set API_ADMIN_EMAIL and API_ADMIN_PASSWORD to run."
   } else {
     $env:API_BASE_URL = $BaseUrl
-    Invoke-Checked "npm" @("run", "smoke", "--workspace", "@livestock/api")
+    Invoke-Checked -Command "npm" -CommandArgs @("run", "smoke", "--workspace", "@livestock/api")
   }
 }
 
