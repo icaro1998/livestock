@@ -1,6 +1,8 @@
 import crypto from "crypto";
 
 const base = process.env.SMOKE_BASE || "http://localhost:3000";
+const adminEmail = process.env.API_ADMIN_EMAIL || process.env.SMOKE_ADMIN_EMAIL || "admin@example.com";
+const adminPassword = process.env.API_ADMIN_PASSWORD || process.env.SMOKE_ADMIN_PASSWORD || "admin1234";
 
 const post = async (url: string, body: any, token?: string) => {
   const res = await fetch(base + url, {
@@ -49,9 +51,9 @@ const main = async () => {
 
   let login;
   try {
-    login = await post("/auth/login", { email: "admin@example.com", password: "admin1234" });
+    login = await post("/auth/login", { email: adminEmail, password: adminPassword });
   } catch (err) {
-    console.error("Login failed; ensure seed ran.");
+    console.error("Login failed; ensure seed ran or set API_ADMIN_EMAIL/API_ADMIN_PASSWORD.");
     throw err;
   }
 
