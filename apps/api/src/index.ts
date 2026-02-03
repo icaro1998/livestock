@@ -24,6 +24,20 @@ const buildServer = () => {
     trustProxy: true,
   });
 
+  fastify.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+    if (typeof body !== "string") return done(null, body);
+    const trimmed = body.trim().replace(/^\uFEFF/, "");
+    const normalized =
+      trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2
+        ? trimmed.slice(1, -1)
+        : trimmed;
+    try {
+      done(null, JSON.parse(normalized));
+    } catch (err) {
+      done(err as Error);
+    }
+  });
+
   fastify.decorate("config", config);
   fastify.decorate("prisma", prisma);
   fastify.addHook("onClose", async () => {
