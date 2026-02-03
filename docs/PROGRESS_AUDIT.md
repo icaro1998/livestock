@@ -1,0 +1,20 @@
+# Progress Audit (2026-02-03)
+
+## Current status
+- Branch: `codex/implement-stabilization-for-launch-today`
+- Latest commit: `ae12bd3` (baseline doc formatting fix)
+- Green baseline recorded at commit: `339d97b`
+
+## Verified today
+- Docker Compose build/up: OK
+- Health check: `GET /healthz` OK
+- API integration tests: PASS (4/4)
+- Smoke test: PASS
+- Workspace tests: PASS (api 7/7, shared 2/2)
+- Baseline recorded: `docs/baseline/green-2026-02-03.md`
+
+## Skipped / Not verified
+- DB health test skipped (missing `DATABASE_URL`)
+
+## Suggested next steps
+- Set `DATABASE_URL` and re-run `npm test --workspaces` to include DB health.
