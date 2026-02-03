@@ -47,6 +47,7 @@ const run = (cmd) => {
 
 const pgDumpAvailable = commandExists("pg_dump");
 const pgRestoreAvailable = commandExists("pg_restore");
+const preferDocker = Boolean(process.env.POSTGRES_CONTAINER);
 
 const repoRoot = process.cwd();
 const composeFile = path.resolve(repoRoot, "infra", "docker-compose.yml");
@@ -72,12 +73,11 @@ const detectContainer = () => {
 };
 
 const runPgDump = () => {
-  if (pgDumpAvailable) {
+  const container = detectContainer();
+  if (!preferDocker && pgDumpAvailable) {
     run(`pg_dump -Fc -f "${target}" "${dbUrl}"`);
     return { method: "host" };
   }
-
-  const container = detectContainer();
   if (!container) {
     throw new Error(
       "pg_dump not found and no postgres container detected. Install PostgreSQL client tools or start docker compose."
@@ -93,7 +93,7 @@ const runPgDump = () => {
 };
 
 const runPgRestoreList = (methodInfo) => {
-  if (pgRestoreAvailable) {
+  if (!preferDocker && pgRestoreAvailable) {
     run(`pg_restore --list "${target}" > ${nullDevice}`);
     return;
   }
@@ -120,7 +120,7 @@ if (!restoreUrl) {
 }
 
 console.warn("Restoring into RESTORE_DATABASE_URL (this overwrites target DB).\n");
-if (pgRestoreAvailable) {
+if (!preferDocker && pgRestoreAvailable) {
   run(`pg_restore --clean --if-exists -d "${restoreUrl}" "${target}"`);
 } else if (methodInfo.method === "docker") {
   const { user, password, db } = parseUrl(restoreUrl);
