@@ -17,6 +17,7 @@ import analyticsRoutes from "./routes/analytics";
 import systemRoutes from "./routes/system";
 import { scheduleAnalytics } from "./jobs/analytics";
 import { ApiError, isApiError } from "./utils/errors";
+import { ZodError } from "zod";
 
 const buildServer = () => {
   const fastify = Fastify({
@@ -68,6 +69,10 @@ const buildServer = () => {
   fastify.setErrorHandler((error, request, reply) => {
     if (isApiError(error)) {
       reply.code(error.statusCode).send({ message: error.message, details: error.details });
+      return;
+    }
+    if (error instanceof ZodError) {
+      reply.code(400).send({ message: "Validation error", details: error.errors });
       return;
     }
 
