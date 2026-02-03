@@ -28,15 +28,30 @@ const buildServer = () => {
   fastify.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
     if (typeof body !== "string") return done(null, body);
     const trimmed = body.trim().replace(/^\uFEFF/, "");
-    const normalized =
-      trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2
-        ? trimmed.slice(1, -1)
-        : trimmed;
-    try {
-      done(null, JSON.parse(normalized));
-    } catch (err) {
-      done(err as Error);
+    const unescapeQuotes = (value: string) => value.replace(/\\+"/g, '"');
+    const candidates: string[] = [trimmed];
+
+    if (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2) {
+      candidates.unshift(trimmed.slice(1, -1));
     }
+    if (trimmed.includes("\\\"")) {
+      candidates.unshift(unescapeQuotes(trimmed));
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = JSON.parse(candidate);
+        if (typeof parsed === "string") {
+          try {
+            return done(null, JSON.parse(parsed));
+          } catch {
+            // fall through
+          }
+        }
+        return done(null, parsed);
+      } catch {}
+    }
+    done(new SyntaxError("Invalid JSON body"));
   });
 
   fastify.decorate("config", config);
@@ -75,11 +90,14 @@ const buildServer = () => {
       reply.code(400).send({ message: "Validation error", details: error.errors });
       return;
     }
+    if (error instanceof SyntaxError) {
+      reply.code(400).send({ message: "Invalid JSON body" });
+      return;
+    }
 
     const statusCode = typeof (error as any).statusCode === "number" ? (error as any).statusCode : undefined;
     if (statusCode && statusCode >= 400 && statusCode < 500) {
-      const isInvalidJson =
-        (error as any).code === "FST_ERR_CTP_INVALID_BODY" || error instanceof SyntaxError;
+      const isInvalidJson = (error as any).code === "FST_ERR_CTP_INVALID_BODY";
       reply.code(statusCode).send({ message: isInvalidJson ? "Invalid JSON body" : error.message });
       return;
     }
