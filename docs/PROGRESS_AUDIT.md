@@ -18,3 +18,8 @@
 
 ## Suggested next steps
 - Set `DATABASE_URL` and re-run `npm test --workspaces` to include DB health.
+
+## Deployment readiness updates
+- Added `DOTENV_PATH` support for production env validation.
+- Added a Docker deployment runbook in `docs/PRODUCTION.md`.
+- Added production Docker Compose templates in `infra/docker-compose.prod.yml` and `infra/docker-compose.prod.stack.yml`.

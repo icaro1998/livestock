@@ -55,7 +55,39 @@ Choose one:
 - Use a dedicated Redis instance for production.
 - Consider persistence settings if needed.
 
-## 7) Deployment checklist
+## 7) Deployment runbook (Docker)
+- Build image:
+  ```
+  docker build -f apps/api/Dockerfile -t livestock-api:latest .
+  ```
+- Validate production env locally (optional; for `.env.production` only):
+  ```
+  NODE_ENV=production ALLOW_DOTENV=true DOTENV_PATH=.env.production npm run prod:validate
+  ```
+- Run migrations (from the image, using your production env):
+  ```
+  docker run --rm --env-file .env.production livestock-api:latest npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+  ```
+- Start the API:
+  ```
+  docker run -d --name livestock-api --env-file .env.production -p 3000:3000 livestock-api:latest
+  ```
+
+## 8) Deployment runbook (Docker Compose)
+- External DB/Redis (recommended):
+  ```
+  docker compose -f infra/docker-compose.prod.yml up -d
+  ```
+- Single-host stack (API + Postgres + Redis):
+  ```
+  docker compose -f infra/docker-compose.prod.stack.yml up -d
+  ```
+- Run migrations (either compose file):
+  ```
+  docker compose -f infra/docker-compose.prod.yml run --rm api npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+  ```
+
+## 9) Deployment checklist
 - [ ] `NODE_ENV=production`
 - [ ] Secrets are injected from a secure source
 - [ ] DB migrations applied
@@ -67,11 +99,11 @@ Choose one:
 - [ ] Health endpoint `/healthz` returns OK
 - [ ] Smoke test passes against production URL
 
-## 8) TLS and ingress
+## 10) TLS and ingress
 - Terminate TLS at your load balancer / ingress and forward to the API.
 - Set `CORS_ORIGIN` to only the allowed frontend origins.
 
-## 9) Incident response basics
+## 11) Incident response basics
 - If a JWT secret is rotated, revoke refresh tokens:
   ```
   npm run admin --workspace @livestock/api -- --revoke-tokens --email=...

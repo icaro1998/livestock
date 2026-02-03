@@ -12,7 +12,8 @@ production env vars are missing or unsafe.
 
 ## Dotenv behavior
 - `.env` loading is **disabled** in production by default.
-- To allow `.env` in production, set `ALLOW_DOTENV=true` explicitly.
+- To allow dotenv loading in production, set `ALLOW_DOTENV=true` explicitly.
+- Optional: set `DOTENV_PATH=.env.production` to load a specific file when dotenv is enabled.
 
 ## Forbidden in production
 - `BOOTSTRAP_ADMIN=true`

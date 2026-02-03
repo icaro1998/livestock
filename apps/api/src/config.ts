@@ -6,19 +6,25 @@ const bool = (val: string | undefined, def = false) => {
   return ["1", "true", "yes", "on"].includes(val.toLowerCase());
 };
 
+const repoRoot = path.resolve(__dirname, "../../../");
 const initialEnv = process.env.NODE_ENV || "development";
 const allowDotenv = initialEnv !== "production" || bool(process.env.ALLOW_DOTENV, false);
 
 if (allowDotenv) {
-  dotenv.config();
-  // If running from apps/api, load repo-root .env as a fallback.
-  if (!process.env.DATABASE_URL) {
-    const rootEnv = path.resolve(__dirname, "../../../.env");
-    dotenv.config({ path: rootEnv });
+  const dotenvPath = process.env.DOTENV_PATH
+    ? path.resolve(repoRoot, process.env.DOTENV_PATH)
+    : null;
+  if (dotenvPath) {
+    dotenv.config({ path: dotenvPath });
+  } else {
+    dotenv.config();
+    // If running from apps/api, load repo-root .env as a fallback.
+    if (!process.env.DATABASE_URL) {
+      const rootEnv = path.resolve(__dirname, "../../../.env");
+      dotenv.config({ path: rootEnv });
+    }
   }
 }
-
-const repoRoot = path.resolve(__dirname, "../../../");
 const resolveRepoPath = (value: string | undefined, fallback: string) => {
   if (!value) return path.join(repoRoot, fallback);
   return path.isAbsolute(value) ? value : path.join(repoRoot, value);
