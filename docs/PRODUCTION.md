@@ -72,6 +72,10 @@ Choose one:
   ```
   docker run -d --name livestock-api --env-file .env.production -p 3000:3000 livestock-api:latest
   ```
+- Wait for health (retries up to 30s):
+  ```
+  ./scripts/health-check.sh
+  ```
 
 ## 8) Deployment runbook (Docker Compose)
 - External DB/Redis (recommended):
@@ -85,6 +89,10 @@ Choose one:
 - Run migrations (either compose file):
   ```
   docker compose -f infra/docker-compose.prod.yml run --rm api npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+  ```
+- Wait for health (retries up to 30s):
+  ```
+  ./scripts/health-check.sh
   ```
 
 ## 9) Deployment checklist

@@ -41,11 +41,11 @@ Recommended:
 
 Quick local checks:
 ```powershell
-.\scripts\health-check.ps1
+.\scripts\health-check.ps1 -BaseUrl http://localhost:3000 -MaxAttempts 30 -DelaySeconds 1
 ```
 
 ```bash
-./scripts/health-check.sh
+./scripts/health-check.sh http://localhost:3000 30 1
 ```
 
 ## 4) Suggested monitoring stack
