@@ -95,6 +95,14 @@ Choose one:
   ```
   ./scripts/backup-prod.sh
   ```
+  PowerShell:
+  ```
+  .\scripts\backup-prod.ps1
+  ```
+  Notes:
+  - Writes a compressed custom-format dump + `.sha256` checksum.
+  - Keeps the most recent 7 backups (set `RETAIN` env var or `-Retain`).
+  - Optional: set `PGPASSWORD` env var for password-protected DBs.
 - Wait for health (retries up to 30s):
   ```
   ./scripts/health-check.sh
