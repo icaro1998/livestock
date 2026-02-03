@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+﻿import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { config } from "./config";
@@ -44,16 +44,13 @@ const buildServer = () => {
         if (typeof parsed === "string") {
           try {
             return done(null, JSON.parse(parsed));
-          } catch {
-            // fall through
-          }
+          } catch {}
         }
         return done(null, parsed);
       } catch {}
     }
     done(new SyntaxError("Invalid JSON body"));
   });
-
   fastify.decorate("config", config);
   fastify.decorate("prisma", prisma);
   fastify.addHook("onClose", async () => {
@@ -91,6 +88,9 @@ const buildServer = () => {
       return;
     }
     if (error instanceof SyntaxError) {
+      reply.code(400).send({ message: "Invalid JSON body" });
+      return;
+    }    if (error instanceof SyntaxError) {
       reply.code(400).send({ message: "Invalid JSON body" });
       return;
     }
@@ -135,3 +135,4 @@ if (require.main === module) {
 }
 
 export default buildServer;
+
