@@ -103,6 +103,7 @@ Choose one:
   - Writes a compressed custom-format dump + `.sha256` checksum.
   - Keeps the most recent 7 backups (set `RETAIN` env var or `-Retain`).
   - Optional: set `PGPASSWORD` env var for password-protected DBs.
+  - Writes a log to `logs/backup-YYYYMMDD-HHMMSS.log` by default.
 - Wait for health (retries up to 30s):
   ```
   ./scripts/health-check.sh

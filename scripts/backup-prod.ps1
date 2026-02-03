@@ -6,12 +6,32 @@ param(
   [string]$OutDir = "backups",
   [int]$Retain = 7,
   [int]$CompressLevel = 9,
-  [string]$PgPassword = ""
+  [string]$PgPassword = "",
+  [string]$LogDir = "logs"
 )
 
 $ErrorActionPreference = "Stop"
 
+# Resolve repo root from script location
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = Split-Path -Parent $scriptDir
+Set-Location $repoRoot
+
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$logDirPath = Join-Path $repoRoot $LogDir
+if (-not (Test-Path $logDirPath)) {
+  New-Item -ItemType Directory -Force $logDirPath | Out-Null
+}
+$logPath = Join-Path $logDirPath "backup-$timestamp.log"
+$transcribing = $false
+try {
+  Start-Transcript -Path $logPath -Force | Out-Null
+  $transcribing = $true
+} catch {
+  Write-Warning "Unable to start transcript: $($_.Exception.Message)"
+}
+
+try {
 $outDirPath = Resolve-Path -Path $OutDir -ErrorAction SilentlyContinue
 if (-not $outDirPath) {
   New-Item -ItemType Directory -Force $OutDir | Out-Null
@@ -54,3 +74,11 @@ if ($Retain -gt 0) {
 }
 
 Write-Host "Backup complete"
+} finally {
+  if ($transcribing) {
+    try {
+      Stop-Transcript | Out-Null
+    } catch {}
+  }
+  Write-Host "Log saved to $logPath"
+}
