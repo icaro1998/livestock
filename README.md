@@ -112,7 +112,7 @@ See `.env.example`. Common ones:
 
 ## API surface
 - REST on port `3000`
-- WebSocket endpoint: `/ws` (topics: `animal.updated`, `event.created`, `cost.created`, `dimension.updated`)
+- WebSocket endpoint: `/ws` (JWT required via `Authorization: Bearer <token>` or `?token=<accessToken>`) (topics: `animal.updated`, `event.created`, `cost.created`, `dimension.updated`)
 - OpenAPI docs: `/docs` when `OPENAPI_ENABLED=true`
 - Health endpoints: `/healthz`, `/readyz`, `/metrics`, `/info`
 - Export endpoints: `/export/animals`, `/export/events`, `/export/costs`, `/export/dimensions` (add `?format=csv` for CSV). Optional: `limit` (default 1000, max 5000), `cursor`. Events support `include_payload=true`. Dimensions support `table=location|herdGroup|party|product`.
