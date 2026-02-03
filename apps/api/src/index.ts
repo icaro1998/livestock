@@ -54,10 +54,19 @@ const buildServer = () => {
   fastify.setErrorHandler((error, request, reply) => {
     if (isApiError(error)) {
       reply.code(error.statusCode).send({ message: error.message, details: error.details });
-    } else {
-      fastify.log.error(error);
-      reply.code(500).send({ message: "Internal Server Error" });
+      return;
     }
+
+    const statusCode = typeof (error as any).statusCode === "number" ? (error as any).statusCode : undefined;
+    if (statusCode && statusCode >= 400 && statusCode < 500) {
+      const isInvalidJson =
+        (error as any).code === "FST_ERR_CTP_INVALID_BODY" || error instanceof SyntaxError;
+      reply.code(statusCode).send({ message: isInvalidJson ? "Invalid JSON body" : error.message });
+      return;
+    }
+
+    fastify.log.error(error);
+    reply.code(500).send({ message: "Internal Server Error" });
   });
 
   fastify.register(systemRoutes);
