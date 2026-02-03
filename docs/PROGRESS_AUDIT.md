@@ -2,8 +2,9 @@
 
 ## Current status
 - Branch: `codex/implement-stabilization-for-launch-today`
-- Latest commit: `ae12bd3` (baseline doc formatting fix)
+- Latest commit: `ee29673` (fix deploy script invocation)
 - Green baseline recorded at commit: `339d97b`
+- Last green (prod audit): `2026-02-03 05:14:54` @ `ee29673`
 
 ## Verified today
 - Docker Compose build/up: OK
@@ -25,3 +26,11 @@
 - Added production Docker Compose templates in `infra/docker-compose.prod.yml` and `infra/docker-compose.prod.stack.yml`.
 - Updated health check scripts to retry so restarts stay green.
 - Hardened prod stack by removing Postgres/Redis host port exposure; added backup scripts.
+
+## Latest prod audit (2026-02-03 05:14:54)
+- `prod:validate`: PASS
+- `deploy:prod`: PASS
+- Health check: PASS
+- Smoke test: PASS
+- Audit log: `logs/prod-audit-20260203-051454.log`
+- `.env.production` remains untracked (expected)
