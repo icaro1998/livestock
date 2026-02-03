@@ -86,9 +86,14 @@ Choose one:
   ```
   docker compose -f infra/docker-compose.prod.stack.yml up -d
   ```
+- Postgres/Redis are not exposed on host ports in the prod stack.
 - Run migrations (either compose file):
   ```
   docker compose -f infra/docker-compose.prod.yml run --rm api npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+  ```
+- Backup (single-host stack):
+  ```
+  ./scripts/backup-prod.sh
   ```
 - Wait for health (retries up to 30s):
   ```

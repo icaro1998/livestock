@@ -24,3 +24,4 @@
 - Added a Docker deployment runbook in `docs/PRODUCTION.md`.
 - Added production Docker Compose templates in `infra/docker-compose.prod.yml` and `infra/docker-compose.prod.stack.yml`.
 - Updated health check scripts to retry so restarts stay green.
+- Hardened prod stack by removing Postgres/Redis host port exposure; added backup scripts.
