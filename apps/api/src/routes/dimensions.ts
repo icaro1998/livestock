@@ -9,6 +9,26 @@ const register = (
   table: "location" | "herdGroup" | "party" | "product"
 ) => {
   const title = table === "herdGroup" ? "Group" : table.charAt(0).toUpperCase() + table.slice(1);
+  const createBodySchema = (() => {
+    const base: Record<string, any> = {
+      code: { type: "string" },
+      name: { type: "string" },
+      meta: { type: "object", additionalProperties: true },
+    };
+    if (table === "location" || table === "party") {
+      base.type = { type: "string" };
+    }
+    if (table === "product") {
+      base.category = { type: "string" };
+      base.unit = { type: "string" };
+    }
+    return {
+      type: "object",
+      additionalProperties: true,
+      required: ["code"],
+      properties: base,
+    };
+  })();
 
   fastify.get(
     path,
@@ -35,17 +55,7 @@ const register = (
       schema: {
         tags: ["Dimensions"],
         summary: `Create ${title.toLowerCase()}`,
-        body: {
-          type: "object",
-          additionalProperties: true,
-          required: ["code"],
-          properties: {
-            code: { type: "string" },
-            name: { type: "string" },
-            type: { type: "string" },
-            meta: { type: "object", additionalProperties: true },
-          },
-        },
+        body: createBodySchema,
         response: {
           201: { type: "object", additionalProperties: true },
         },

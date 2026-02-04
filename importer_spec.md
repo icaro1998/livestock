@@ -37,7 +37,7 @@ Optional: `uid, group_code, location_code, product_code, party_code, currency, q
 
 ## Idempotency handling
 - `Idempotency-Key` request header sets `source_ref` for events and is part of the dedup key.
-- For bulk operations the same header is applied to every event unless an event provides its own `source_ref`.
+- For bulk operations the same header overrides `source_ref` for every event (even if an event provides its own `source_ref`).
 - Costs are not deduplicated automatically; callers should provide unique `source_ref` if needed.
 
 ## Data integrity

@@ -2,6 +2,8 @@ import { FastifyInstance } from "fastify";
 import { parsePagination, buildCursorPage } from "@livestock/shared";
 import { ApiError } from "../utils/errors";
 
+const toDate = (val: any) => (val instanceof Date ? val : new Date(val));
+
 export const createAnimal = async (fastify: FastifyInstance, data: any) => {
   return fastify.prisma.animal.create({ data });
 };
@@ -59,6 +61,7 @@ export const searchAnimals = async (fastify: FastifyInstance, params: any) => {
   const { limit, cursor } = parsePagination(params);
   const where: any = {};
   const and: any[] = [];
+  const eventFilter: any = {};
   if (params.search) {
     const search = params.search;
     where.OR = [
@@ -94,7 +97,20 @@ export const searchAnimals = async (fastify: FastifyInstance, params: any) => {
 
   // approximate filters using relations
   if (params.last_event_type) {
-    where.events = { some: { event_type: params.last_event_type } };
+    eventFilter.event_type = params.last_event_type;
+  }
+  if (params.from || params.to) {
+    eventFilter.event_at = {};
+    if (params.from) eventFilter.event_at.gte = toDate(params.from);
+    if (params.to) eventFilter.event_at.lte = toDate(params.to);
+  }
+  if (params.location_code) {
+    const loc = await fastify.prisma.location.findUnique({ where: { code: params.location_code } });
+    if (!loc) return { data: [], nextCursor: undefined };
+    eventFilter.OR = [{ location_from_id: loc.id }, { location_to_id: loc.id }];
+  }
+  if (Object.keys(eventFilter).length) {
+    where.events = { some: eventFilter };
   }
 
   if (and.length) where.AND = and;

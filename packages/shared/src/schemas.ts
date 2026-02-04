@@ -145,6 +145,8 @@ export const dimensionCreateSchema = z.object({
   code: z.string().min(1),
   name: z.string().optional(),
   type: z.string().optional(),
+  category: z.string().optional(),
+  unit: z.string().optional(),
   meta: z.record(z.any()).optional(),
 });
 

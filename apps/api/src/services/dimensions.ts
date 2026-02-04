@@ -39,5 +39,22 @@ export const listDimension = async (tx: DbClient, table: "location" | "herdGroup
 export const createDimension = async (
   tx: DbClient,
   table: "location" | "herdGroup" | "party" | "product",
-  data: { code: string; name?: string | null; type?: string | null; meta?: any }
-) => (tx as any)[table].create({ data });
+  data: {
+    code: string;
+    name?: string | null;
+    type?: string | null;
+    category?: string | null;
+    unit?: string | null;
+    meta?: any;
+  }
+) => {
+  const payload: Record<string, unknown> = { code: data.code };
+  if (data.name !== undefined) payload.name = data.name;
+  if (data.meta !== undefined) payload.meta = data.meta;
+  if ((table === "location" || table === "party") && data.type !== undefined) payload.type = data.type;
+  if (table === "product") {
+    if (data.category !== undefined) payload.category = data.category;
+    if (data.unit !== undefined) payload.unit = data.unit;
+  }
+  return (tx as any)[table].create({ data: payload });
+};
