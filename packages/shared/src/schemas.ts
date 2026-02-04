@@ -145,6 +145,8 @@ export const dimensionCreateSchema = z.object({
   code: z.string().min(1),
   name: z.string().optional(),
   type: z.string().optional(),
+  category: z.string().optional(),
+  unit: z.string().optional(),
   meta: z.record(z.any()).optional(),
 });
 
@@ -174,4 +176,28 @@ export const eventsQuerySchema = paginationSchema.extend({
   location_code: z.string().optional(),
   group_code: z.string().optional(),
   batch_id: z.string().optional(),
+});
+
+export const exportAnimalsQuerySchema = animalsQuerySchema.extend({
+  format: z.enum(["json", "csv"]).optional(),
+});
+
+export const exportEventsQuerySchema = eventsQuerySchema.extend({
+  format: z.enum(["json", "csv"]).optional(),
+  include_payload: z.coerce.boolean().optional(),
+});
+
+export const exportCostsQuerySchema = paginationSchema.extend({
+  format: z.enum(["json", "csv"]).optional(),
+  scope: z.string().optional(),
+  uid: z.string().optional(),
+  category: z.string().optional(),
+  batch_id: z.string().optional(),
+  from: dateLike.optional(),
+  to: dateLike.optional(),
+});
+
+export const exportDimensionsQuerySchema = z.object({
+  format: z.enum(["json", "csv"]).optional(),
+  table: z.enum(["location", "herdGroup", "party", "product"]).optional(),
 });

@@ -1,0 +1,203 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm install
+      - name: Lint
+        run: npm run lint --workspaces
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm install
+      - name: Build (type-check)
+        run: npm run build --workspaces
+
+  fastify-boot-smoke:
+    runs-on: ubuntu-latest
+    needs: [type-check]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: livestock
+          POSTGRES_PASSWORD: livestock
+          POSTGRES_DB: livestock
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U livestock -d livestock"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://livestock:livestock@localhost:5432/livestock
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ciaccesssecret
+      JWT_REFRESH_SECRET: cirefreshsecret
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_EXPIRES: 7d
+      BOOTSTRAP_ADMIN: true
+      OPENAPI_ENABLED: false
+      RATE_LIMIT_MAX: 1000
+      RATE_LIMIT_WINDOW: 1 minute
+      CORS_ORIGIN: "*"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm install
+      - name: Generate Prisma client
+        run: npm run generate --workspace @livestock/db
+      - name: Build shared/db
+        run: |
+          npm run build --workspace @livestock/shared
+          npm run build --workspace @livestock/db
+      - name: Fastify boot smoke
+        run: npm run fastify:boot
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm install
+      - name: Test
+        run: npm test --workspaces
+
+  integration-smoke:
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, unit-tests, fastify-boot-smoke]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: livestock
+          POSTGRES_PASSWORD: livestock
+          POSTGRES_DB: livestock
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U livestock -d livestock"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://livestock:livestock@localhost:5432/livestock
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ciaccesssecret
+      JWT_REFRESH_SECRET: cirefreshsecret
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_EXPIRES: 7d
+      BOOTSTRAP_ADMIN: true
+      OPENAPI_ENABLED: false
+      RATE_LIMIT_MAX: 1000
+      RATE_LIMIT_WINDOW: 1 minute
+      CORS_ORIGIN: "*"
+      API_BASE_URL: http://localhost:3000
+      API_ADMIN_EMAIL: admin@example.com
+      API_ADMIN_PASSWORD: admin1234
+      API_HEALTH_TIMEOUT_MS: 3000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm install
+      - name: Generate Prisma client
+        run: npm run generate --workspace @livestock/db
+      - name: Build workspaces
+        run: npm run build --workspaces
+      - name: Migrate DB
+        run: npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+      - name: Seed DB
+        run: npm run seed --workspace @livestock/api
+      - name: Start API
+        run: |
+          node apps/api/dist/index.js &
+          echo $! > /tmp/api.pid
+          for i in {1..30}; do
+            curl -fsS http://localhost:3000/healthz && exit 0
+            sleep 1
+          done
+          echo "API did not become healthy" >&2
+          exit 1
+      - name: Integration tests
+        run: npm test --workspaces
+      - name: Smoke
+        run: npm run smoke --workspace @livestock/api
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f /tmp/api.pid ]; then
+            kill $(cat /tmp/api.pid) || true
+          fi

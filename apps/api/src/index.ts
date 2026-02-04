@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+﻿import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { config } from "./config";
@@ -17,6 +17,7 @@ import analyticsRoutes from "./routes/analytics";
 import systemRoutes from "./routes/system";
 import { scheduleAnalytics } from "./jobs/analytics";
 import { ApiError, isApiError } from "./utils/errors";
+import { ZodError } from "zod";
 
 const buildServer = () => {
   const fastify = Fastify({
@@ -24,6 +25,32 @@ const buildServer = () => {
     trustProxy: true,
   });
 
+  fastify.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+    if (typeof body !== "string") return done(null, body);
+    const trimmed = body.trim().replace(/^\uFEFF/, "");
+    const unescapeQuotes = (value: string) => value.replace(/\\+"/g, '"');
+    const candidates: string[] = [trimmed];
+
+    if (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2) {
+      candidates.unshift(trimmed.slice(1, -1));
+    }
+    if (trimmed.includes("\\\"")) {
+      candidates.unshift(unescapeQuotes(trimmed));
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = JSON.parse(candidate);
+        if (typeof parsed === "string") {
+          try {
+            return done(null, JSON.parse(parsed));
+          } catch {}
+        }
+        return done(null, parsed);
+      } catch {}
+    }
+    done(new SyntaxError("Invalid JSON body"));
+  });
   fastify.decorate("config", config);
   fastify.decorate("prisma", prisma);
   fastify.addHook("onClose", async () => {
@@ -54,10 +81,29 @@ const buildServer = () => {
   fastify.setErrorHandler((error, request, reply) => {
     if (isApiError(error)) {
       reply.code(error.statusCode).send({ message: error.message, details: error.details });
-    } else {
-      fastify.log.error(error);
-      reply.code(500).send({ message: "Internal Server Error" });
+      return;
     }
+    if (error instanceof ZodError) {
+      reply.code(400).send({ message: "Validation error", details: error.errors });
+      return;
+    }
+    if (error instanceof SyntaxError) {
+      reply.code(400).send({ message: "Invalid JSON body" });
+      return;
+    }    if (error instanceof SyntaxError) {
+      reply.code(400).send({ message: "Invalid JSON body" });
+      return;
+    }
+
+    const statusCode = typeof (error as any).statusCode === "number" ? (error as any).statusCode : undefined;
+    if (statusCode && statusCode >= 400 && statusCode < 500) {
+      const isInvalidJson = (error as any).code === "FST_ERR_CTP_INVALID_BODY";
+      reply.code(statusCode).send({ message: isInvalidJson ? "Invalid JSON body" : error.message });
+      return;
+    }
+
+    fastify.log.error(error);
+    reply.code(500).send({ message: "Internal Server Error" });
   });
 
   fastify.register(systemRoutes);
@@ -89,3 +135,4 @@ if (require.main === module) {
 }
 
 export default buildServer;
+

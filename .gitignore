@@ -5,6 +5,7 @@ yarn-error.log*
 pnpm-debug.log*
 .DS_Store
 .env
+.env.production
 .env.local
 .env.development.local
 .env.test.local
@@ -16,4 +17,7 @@ dist
 .prisma
 *.sqlite
 *.log
+*.tsbuildinfo
 /apps/api/openapi.json
+backups/
+seed-report.json

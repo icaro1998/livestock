@@ -1,31 +1,226 @@
 import { FastifyInstance } from "fastify";
-import { eventCreateSchema, bulkEventsSchema, eventsQuerySchema, IDEMPOTENCY_KEY_HEADER } from "@livestock/shared";
-import { createEvent, bulkCreateEvents, listEvents } from "../services/events";
+import { eventCreateSchema, bulkEventsSchema, eventsQuerySchema, exportEventsQuerySchema, IDEMPOTENCY_KEY_HEADER } from "@livestock/shared";
+import { createEvent, bulkCreateEvents, exportEvents, listEvents } from "../services/events";
+import { safeJsonStringify, toCsv } from "../utils/csv";
+
+const cursorPageSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    data: { type: "array", items: { type: "object", additionalProperties: true } },
+    nextCursor: { type: ["string", "null"] },
+  },
+};
 
 export default async function eventRoutes(fastify: FastifyInstance) {
-  fastify.post("/events", { preHandler: fastify.authorize("manager") }, async (request, reply) => {
-    const body = eventCreateSchema.parse(request.body);
-    const idem = request.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
-    const { event, dedup } = await createEvent(
-      fastify,
-      { ...body, source_ref: idem ?? body.source_ref },
-      request.id
-    );
-    reply.code(dedup ? 200 : 201).send(event);
-  });
+  fastify.post(
+    "/events",
+    {
+      preHandler: fastify.authorize("manager"),
+      schema: {
+        tags: ["Events"],
+        summary: "Create event",
+        headers: {
+          type: "object",
+          properties: {
+            [IDEMPOTENCY_KEY_HEADER]: { type: "string" },
+          },
+        },
+        body: {
+          type: "object",
+          additionalProperties: true,
+          required: ["uid", "event_at", "event_type"],
+          properties: {
+            uid: { type: "string" },
+            event_at: { type: "string" },
+            event_type: { type: "string" },
+            event_subtype: { type: "string" },
+            source_ref: { type: "string" },
+            batch_id: { type: "string" },
+            confidence: { type: "number" },
+            notes: { type: "string" },
+            payload: { type: "object", additionalProperties: true },
+          },
+        },
+        response: {
+          200: { type: "object", additionalProperties: true },
+          201: { type: "object", additionalProperties: true },
+        },
+      },
+    },
+    async (request, reply) => {
+      const body = eventCreateSchema.parse(request.body);
+      const idem = request.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
+      const { event, dedup } = await createEvent(
+        fastify,
+        { ...body, source_ref: idem ?? body.source_ref },
+        request.id
+      );
+      reply.code(dedup ? 200 : 201).send(event);
+    }
+  );
 
-  fastify.post("/events/bulk", { preHandler: fastify.authorize("manager") }, async (request, reply) => {
-    const body = bulkEventsSchema.parse(request.body);
-    const idem = request.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
-    const events = body.events.map((e) => ({ ...e, source_ref: idem ?? e.source_ref }));
-    const result = await bulkCreateEvents(fastify, events, request.id);
-    const dedup = result.every((r) => r.dedup);
-    reply.code(dedup ? 200 : 201).send({ events: result.map((r) => r.event) });
-  });
+  fastify.post(
+    "/events/bulk",
+    {
+      preHandler: fastify.authorize("manager"),
+      schema: {
+        tags: ["Events"],
+        summary: "Bulk create events",
+        headers: {
+          type: "object",
+          properties: {
+            [IDEMPOTENCY_KEY_HEADER]: { type: "string" },
+          },
+        },
+        body: {
+          type: "object",
+          additionalProperties: true,
+          required: ["events"],
+          properties: {
+            events: { type: "array", items: { type: "object", additionalProperties: true } },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              events: { type: "array", items: { type: "object", additionalProperties: true } },
+            },
+          },
+          201: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              events: { type: "array", items: { type: "object", additionalProperties: true } },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const body = bulkEventsSchema.parse(request.body);
+      const idem = request.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
+      const events = body.events.map((e) => ({ ...e, source_ref: idem ?? e.source_ref }));
+      const result = await bulkCreateEvents(fastify, events, request.id);
+      const dedup = result.every((r) => r.dedup);
+      reply.code(dedup ? 200 : 201).send({ events: result.map((r) => r.event) });
+    }
+  );
 
-  fastify.get("/events", { preHandler: fastify.authorize("viewer") }, async (request, reply) => {
-    const query = eventsQuerySchema.partial().parse(request.query);
-    const page = await listEvents(fastify, query);
-    reply.send(page);
-  });
+  fastify.get(
+    "/events",
+    {
+      preHandler: fastify.authorize("viewer"),
+      schema: {
+        tags: ["Events"],
+        summary: "List events",
+        querystring: {
+          type: "object",
+          additionalProperties: true,
+          properties: {
+            limit: { type: "integer", minimum: 1, maximum: 5000 },
+            cursor: { type: "string" },
+            uid: { type: "string" },
+            event_type: { type: "string" },
+            from: { type: "string" },
+            to: { type: "string" },
+            location_code: { type: "string" },
+            group_code: { type: "string" },
+            batch_id: { type: "string" },
+          },
+        },
+        response: { 200: cursorPageSchema },
+      },
+    },
+    async (request, reply) => {
+      const query = eventsQuerySchema.partial().parse(request.query);
+      const page = await listEvents(fastify, query);
+      reply.send(page);
+    }
+  );
+
+  fastify.get(
+    "/export/events",
+    {
+      preHandler: fastify.authorize("viewer"),
+      schema: {
+        tags: ["Exports", "Events"],
+        summary: "Export events",
+        description: "Returns JSON by default or CSV when format=csv. Pagination via limit/cursor.",
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: "object",
+          additionalProperties: true,
+          properties: {
+            format: { type: "string", enum: ["json", "csv"] },
+            include_payload: { type: "boolean" },
+            limit: { type: "integer", minimum: 1, maximum: 5000 },
+            cursor: { type: "string" },
+            uid: { type: "string" },
+            event_type: { type: "string" },
+            from: { type: "string" },
+            to: { type: "string" },
+            location_code: { type: "string" },
+            group_code: { type: "string" },
+            batch_id: { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            description: "Exported events (JSON). For CSV, use format=csv.",
+            type: "object",
+            properties: {
+              data: { type: "array", items: { type: "object", additionalProperties: true } },
+              nextCursor: { type: ["string", "null"] },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const query = exportEventsQuerySchema.partial().parse(request.query);
+      const rows = await exportEvents(fastify, query);
+      const format = (query.format || "json").toString().toLowerCase();
+      const includePayload = query.include_payload === true;
+      const nextCursor = rows.length > 0 ? String(rows[rows.length - 1].event_id) : undefined;
+
+      if (format === "csv") {
+        const columns = [
+          "event_id",
+          "uid",
+          "event_at",
+          "event_type",
+          "event_subtype",
+          "source_ref",
+          "batch_id",
+          "confidence",
+          "notes",
+          "location_from_id",
+          "location_to_id",
+          "group_id",
+          "party_id",
+          "product_id",
+          "created_at",
+        ];
+        if (includePayload) columns.push("payload");
+        const data = rows.map((r: any) => ({
+          ...r,
+          event_at: r.event_at ? r.event_at.toISOString() : null,
+          created_at: r.created_at ? r.created_at.toISOString() : null,
+          payload: includePayload ? safeJsonStringify(r.payload ?? null) : undefined,
+        }));
+        const csv = toCsv(data, columns);
+        reply
+          .header("content-type", "text/csv; charset=utf-8")
+          .header("content-disposition", "attachment; filename=events.csv")
+          .header("x-next-cursor", nextCursor ?? "")
+          .send(csv);
+        return;
+      }
+
+      reply.send({ data: rows, nextCursor });
+    }
+  );
 }

@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { resolveGroup, resolveLocation, resolveParty, resolveProduct } from "./dimensions";
 import { parsePagination, buildCursorPage, WS_TOPICS } from "@livestock/shared";
+import { ApiError } from "../utils/errors";
 
 const toDate = (v: any) => (v instanceof Date ? v : new Date(v));
 
@@ -93,4 +94,34 @@ export const listCosts = async (fastify: FastifyInstance, query: any) => {
     cursor: cursor ? { cost_id: BigInt(cursor) } : undefined,
   });
   return buildCursorPage(costs, limit, (c) => c.cost_id);
+};
+
+export const exportCosts = async (fastify: FastifyInstance, query: any) => {
+  const limit = query.limit === undefined ? 1000 : Math.min(Number(query.limit), 5000);
+  if (!Number.isFinite(limit) || limit <= 0) throw new ApiError(400, "Invalid limit");
+  let cursor: bigint | undefined;
+  if (query.cursor !== undefined && query.cursor !== null && query.cursor !== "") {
+    try {
+      cursor = BigInt(query.cursor);
+    } catch {
+      throw new ApiError(400, "Invalid cursor");
+    }
+  }
+  const where: any = {};
+  if (query.scope) where.scope = query.scope;
+  if (query.uid) where.uid = query.uid;
+  if (query.category) where.category = query.category;
+  if (query.batch_id) where.batch_id = query.batch_id;
+  if (query.from || query.to) {
+    where.cost_at = {};
+    if (query.from) where.cost_at.gte = toDate(query.from);
+    if (query.to) where.cost_at.lte = toDate(query.to);
+  }
+  return fastify.prisma.costEvent.findMany({
+    where,
+    orderBy: { cost_id: "desc" },
+    take: limit,
+    skip: cursor ? 1 : 0,
+    cursor: cursor ? { cost_id: cursor } : undefined,
+  });
 };

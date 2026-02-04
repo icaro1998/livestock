@@ -1,6 +1,8 @@
 import crypto from "crypto";
 
 const base = process.env.SMOKE_BASE || "http://localhost:3000";
+const adminEmail = process.env.API_ADMIN_EMAIL || process.env.SMOKE_ADMIN_EMAIL || "admin@example.com";
+const adminPassword = process.env.API_ADMIN_PASSWORD || process.env.SMOKE_ADMIN_PASSWORD || "admin1234";
 
 const post = async (url: string, body: any, token?: string) => {
   const res = await fetch(base + url, {
@@ -21,15 +23,37 @@ const get = async (url: string, token?: string) => {
   return res.json();
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const waitForHealth = async () => {
+  for (let i = 0; i < 30; i++) {
+    try {
+      const res = await fetch(base + "/healthz");
+      if (res.ok) return;
+    } catch {
+      // ignore and retry
+    }
+    await sleep(1000);
+  }
+  throw new Error("healthz not ready");
+};
+
+const getText = async (url: string, token?: string) => {
+  const res = await fetch(base + url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new Error(`${url} failed ${res.status}`);
+  return res.text();
+};
+
 const main = async () => {
+  await waitForHealth();
   const health = await get("/healthz");
   console.log("healthz", health);
 
   let login;
   try {
-    login = await post("/auth/login", { email: "admin@example.com", password: "admin1234" });
+    login = await post("/auth/login", { email: adminEmail, password: adminPassword });
   } catch (err) {
-    console.error("Login failed; ensure seed ran.");
+    console.error("Login failed; ensure seed ran or set API_ADMIN_EMAIL/API_ADMIN_PASSWORD.");
     throw err;
   }
 
@@ -58,6 +82,30 @@ const main = async () => {
 
   const events = await get(`/events?uid=${uid}`, token);
   if (!events.data || events.data.length === 0) throw new Error("No events returned");
+
+  const animalsExport = await get("/export/animals?limit=1", token);
+  if (!animalsExport.data || !Array.isArray(animalsExport.data)) throw new Error("Animals export JSON invalid");
+  if (animalsExport.data.length > 1) throw new Error("Animals export limit not enforced");
+
+  const animalsCsv = await getText("/export/animals?format=csv", token);
+  if (!animalsCsv.startsWith("uid,")) throw new Error("Animals export CSV invalid");
+
+  const eventsExport = await get("/export/events?limit=1", token);
+  if (!eventsExport.data || !Array.isArray(eventsExport.data)) throw new Error("Events export JSON invalid");
+
+  const eventsCsv = await getText("/export/events?format=csv&include_payload=true&limit=1", token);
+  if (!eventsCsv.startsWith("event_id,")) throw new Error("Events export CSV invalid");
+  if (!eventsCsv.split("\n")[0].includes(",payload")) throw new Error("Events export payload column missing");
+
+  const costsExport = await get("/export/costs?limit=1", token);
+  if (!costsExport.data || !Array.isArray(costsExport.data)) throw new Error("Costs export JSON invalid");
+
+  const costsCsv = await getText("/export/costs?format=csv&limit=1", token);
+  if (!costsCsv.startsWith("cost_id,")) throw new Error("Costs export CSV invalid");
+
+  const dimsExport = await get("/export/dimensions", token);
+  if (!dimsExport.data || !Array.isArray(dimsExport.data)) throw new Error("Dimensions export JSON invalid");
+
   console.log("smoke PASS");
 };
 

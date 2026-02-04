@@ -42,7 +42,9 @@ const attachPayload = (input: any) => {
   return payload;
 };
 
-const findExistingByDedup = async (tx: PrismaClient, input: any) => {
+type DbClient = PrismaClient | Prisma.TransactionClient;
+
+const findExistingByDedup = async (tx: DbClient, input: any) => {
   const rows = await tx.$queryRawUnsafe<any[]>(
     `SELECT event_id FROM animal_event WHERE uid = $1 AND event_at = $2 AND event_type = $3 AND COALESCE(event_subtype,'') = $4 AND COALESCE(source_ref,'') = $5 LIMIT 1`,
     input.uid,
@@ -58,11 +60,11 @@ const findExistingByDedup = async (tx: PrismaClient, input: any) => {
   });
 };
 
-const createAnimalIfMissing = async (tx: PrismaClient, uid: string) => {
+const createAnimalIfMissing = async (tx: DbClient, uid: string) => {
   await tx.animal.upsert({ where: { uid }, update: {}, create: { uid } });
 };
 
-const createStrongArm = async (tx: PrismaClient, eventId: bigint, input: any) => {
+const createStrongArm = async (tx: DbClient, eventId: bigint, input: any) => {
   switch (input.event_type) {
     case "weight":
       await tx.weightEvent.create({
@@ -131,7 +133,7 @@ const createStrongArm = async (tx: PrismaClient, eventId: bigint, input: any) =>
   }
 };
 
-const createEventInternal = async (tx: PrismaClient, input: any) => {
+const createEventInternal = async (tx: DbClient, input: any) => {
   const payload = attachPayload(input);
   await createAnimalIfMissing(tx, input.uid);
   if (input.event_type === "movement") {
@@ -237,4 +239,44 @@ export const listEvents = async (fastify: FastifyInstance, query: any) => {
     include: { weight: true, movement: true, repro: true, health: true, nutrition: true },
   });
   return buildCursorPage(events, limit, (e) => e.event_id);
+};
+
+export const exportEvents = async (fastify: FastifyInstance, query: any) => {
+  const where: any = {};
+  const limit = query.limit === undefined ? 1000 : Math.min(Number(query.limit), 5000);
+  if (!Number.isFinite(limit) || limit <= 0) throw new ApiError(400, "Invalid limit");
+  let cursor: bigint | undefined;
+  if (query.cursor !== undefined && query.cursor !== null && query.cursor !== "") {
+    try {
+      cursor = BigInt(query.cursor);
+    } catch {
+      throw new ApiError(400, "Invalid cursor");
+    }
+  }
+  if (query.uid) where.uid = query.uid;
+  if (query.event_type) where.event_type = query.event_type;
+  if (query.batch_id) where.batch_id = query.batch_id;
+  if (query.from || query.to) {
+    where.event_at = {};
+    if (query.from) where.event_at.gte = toDate(query.from);
+    if (query.to) where.event_at.lte = toDate(query.to);
+  }
+  if (query.location_code) {
+    const loc = await fastify.prisma.location.findUnique({ where: { code: query.location_code } });
+    if (loc) where.OR = [{ location_from_id: loc.id }, { location_to_id: loc.id }];
+    else where.event_id = -1;
+  }
+  if (query.group_code) {
+    const group = await fastify.prisma.herdGroup.findUnique({ where: { code: query.group_code } });
+    where.group_id = group?.id ?? 0;
+  }
+
+  return fastify.prisma.animalEvent.findMany({
+    where,
+    orderBy: { event_id: "desc" },
+    take: limit,
+    skip: cursor ? 1 : 0,
+    cursor: cursor ? { event_id: cursor } : undefined,
+    include: { weight: true, movement: true, repro: true, health: true, nutrition: true },
+  });
 };

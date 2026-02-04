@@ -1,0 +1,151 @@
+{
+  "workflows": {
+    "ci": {
+      "on": ["pull_request", "push"],
+      "jobs": [
+        "lint",
+        "type-check",
+        "unit-tests",
+        "fastify-boot-smoke",
+        "integration-tests",
+        "build-and-healthcheck",
+        "migration-lint",
+        "event-schema-check"
+      ]
+    },
+    "cd": {
+      "on": ["push"],
+      "branches": ["main"],
+      "jobs": [
+        "publish-artifacts",
+        "deploy"
+      ]
+    }
+  },
+  "testCommands": {
+    "lint": "npm run lint:fix && npm run lint",
+    "typeCheck": "npm run type-check",
+    "unit": "npm run test:unit",
+    "integration": "npm run test:integration",
+    "smoke": "npm run test:smoke",
+    "fastifyBoot": "npm run fastify:boot"
+  },
+  "validationTrees": {
+    "preCommit": [
+      "lint",
+      "typeCheck",
+      "unit"
+    ],
+    "prePush": [
+      "lint",
+      "typeCheck",
+      "unit",
+      "integration"
+    ],
+    "ciPipeline": [
+      {
+        "name": "lint",
+        "requires": [],
+        "command": "npm run lint"
+      },
+      {
+        "name": "type-check",
+        "requires": [],
+        "command": "npm run type-check"
+      },
+      {
+        "name": "unit-tests",
+        "requires": ["lint", "type-check"],
+        "command": "npm run test:unit"
+      },
+      {
+        "name": "integration-tests",
+        "requires": ["unit-tests"],
+        "command": "docker-compose -f docker-compose.test.yml up -d && npm run test:integration"
+      },
+      {
+        "name": "fastify-boot-smoke",
+        "requires": ["type-check"],
+        "command": "npm run fastify:boot"
+      },
+      {
+        "name": "build-and-healthcheck",
+        "requires": ["integration-tests"],
+        "command": "docker-compose -f docker-compose.prod.yml up -d && ./scripts/wait-for-health.sh"
+      },
+      {
+        "name": "migration-lint",
+        "requires": ["type-check"],
+        "command": "npm run prisma:migrate:lint"
+      },
+      {
+        "name": "event-schema-check",
+        "requires": ["type-check"],
+        "command": "npm run events:schema:check"
+      }
+    ]
+  },
+  "reviewScopes": {
+    "api": {
+      "paths": ["apps/api/**", "packages/shared/**"],
+      "requiredReviewers": ["team-backend"]
+    },
+    "database": {
+      "paths": ["**/prisma/**", "**/migrations/**"],
+      "requiredReviewers": ["team-dba"]
+    },
+    "frontend": {
+      "paths": ["apps/web/**", "apps/mobile/**"],
+      "requiredReviewers": ["team-frontend"]
+    },
+    "infrastructure": {
+      "paths": [".github/workflows/**", "infra/**", "Dockerfile", "docker-compose.yml"],
+      "requiredReviewers": ["team-devops"]
+    }
+  },
+  "migrationIntegrityGates": {
+    "prisma": {
+      "preventDestructiveChanges": true,
+      "tool": "atlas"
+    },
+    "events": {
+      "requireBackwardCompatibility": true,
+      "registry": "json-schema"
+    }
+  },
+  "schemaRules": [
+    {
+      "area": "api-schema-validation",
+      "rule": "All Fastify route schemas must compile at boot time",
+      "enforcement": "Run Fastify instance with all plugins registered; fail if any schema throws during ready()",
+      "required": true
+    }
+  ],
+  "incidentLog": [
+    {
+      "incident": {
+        "id": "fastify-schema-boot-failure",
+        "type": "runtime-blocker",
+        "source": "apps/api/src/plugins/ws.ts",
+        "error": "FastifyError: schema is invalid: data/properties/description must be object,boolean",
+        "trigger": "fastify.route GET /ws",
+        "result": "Server never bound to port 3000; /healthz failed",
+        "detection": "manual; Docker container logs post CI timeout"
+      },
+      "resolution": {
+        "change": "Refactor response schema to use proper JSON Schema object or remove invalid response block",
+        "verifiedBy": [
+          "Successful boot log from Fastify",
+          "healthz and metrics reachable",
+          "CI smoke test green"
+        ]
+      },
+      "codexUpdateRequired": true
+    }
+  ],
+  "branchPolicies": {
+    "requirePassingCI": true,
+    "requireApprovals": 1,
+    "enforceConventionalCommits": true
+  }
+}

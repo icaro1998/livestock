@@ -8,16 +8,22 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -ws",
+    "build": "npm run build --workspaces",
+    "doctor": "node scripts/doctor.mjs",
     "dev": "npm run dev --workspace @livestock/api",
-    "lint": "npm run lint -ws",
-    "test": "npm run test -ws",
-    "format": "npm run format -ws",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces",
+    "format": "npm run format --workspaces",
+    "fastify:boot": "tsx scripts/diagnose-api.ts",
+    "prod:validate": "tsx scripts/validate-prod-env.ts",
+    "deploy:prod": "powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1",
     "seed": "npm run seed --workspace @livestock/api",
     "migrate": "npm run migrate --workspace @livestock/db",
     "smoke": "npm run smoke --workspace @livestock/api",
     "db:backup": "npm run db:backup --workspace @livestock/db",
-    "db:restore": "npm run db:restore --workspace @livestock/db"
+    "db:restore": "npm run db:restore --workspace @livestock/db",
+    "db:reset": "npm run db:reset --workspace @livestock/db",
+    "db:backup-verify": "node scripts/backup-restore-verify.mjs"
   },
   "engines": {
     "node": ">=20.0.0",
